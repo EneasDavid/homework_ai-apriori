@@ -26,6 +26,33 @@ APRIORI/
 ```
 
 ---
+## Comando final recomendado
+
+Compile:
+
+```bash
+gcc main.c leitor/leitor.c apriori/apriori.c saida/saida.c -Ileitor -Iapriori -Isaida -o programa_apriori
+```
+
+Execute:
+
+```bash
+./programa_apriori
+```
+
+Digite:
+
+```txt
+compras.txt
+```
+
+Arquivo gerado:
+
+```txt
+regras_associacao.txt
+```
+
+----
 
 ## Organização geral
 
@@ -722,29 +749,3 @@ Se o compilador não encontrar arquivos `.h`, verifique se o comando de compila�
 Esses parâmetros indicam onde estão os headers do projeto.
 
 ---
-
-## Comando final recomendado
-
-Compile:
-
-```bash
-gcc main.c leitor/leitor.c apriori/apriori.c saida/saida.c -Ileitor -Iapriori -Isaida -o programa_apriori
-```
-
-Execute:
-
-```bash
-./programa_apriori
-```
-
-Digite:
-
-```txt
-compras.txt
-```
-
-Arquivo gerado:
-
-```txt
-regras_associacao.txt
-```
