@@ -11,6 +11,7 @@ static void remover_quebra_linha(char *texto) {
 }
 
 static void remover_espacos(char *texto) {
+    /* Remove espacos no inicio e no fim para evitar itens duplicados como "leite" e " leite". */
     int inicio = 0;
     int fim = strlen(texto) - 1;
 
@@ -32,12 +33,14 @@ static void remover_espacos(char *texto) {
 }
 
 static void converter_para_minusculo(char *texto) {
+    /* Normaliza maiusculas/minusculas: "Leite", "LEITE" e "leite" viram o mesmo item. */
     for (int i = 0; texto[i] != '\0'; i++) {
         texto[i] = tolower((unsigned char) texto[i]);
     }
 }
 
 static int buscar_item(BaseCompras *base, char *nome_item) {
+    /* Procura se o item ja existe para reutilizar a mesma coluna da matriz de transacoes. */
     for (int i = 0; i < base->total_itens; i++) {
         if (strcmp(base->itens[i], nome_item) == 0) {
             return i;
@@ -66,6 +69,7 @@ static int adicionar_item(BaseCompras *base, char *nome_item) {
 }
 
 void inicializar_base(BaseCompras *base) {
+    /* A matriz comeca zerada: antes da leitura, nenhuma compra possui nenhum item. */
     base->total_itens = 0;
     base->total_transacoes = 0;
 
@@ -102,6 +106,7 @@ int ler_arquivo_compras(
             continue;
         }
 
+        /* strtok separa a linha em itens usando virgula como delimitador. */
         char *item = strtok(linha, ",");
 
         while (item != NULL) {

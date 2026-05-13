@@ -11,6 +11,7 @@ int calcular_suporte_1_item(
     BaseCompras *base,
     int item
 ) {
+    /* Suporte e a quantidade de compras em que o itemset aparece. */
     int suporte = 0;
 
     for (int t = 0; t < base->total_transacoes; t++) {
@@ -27,6 +28,7 @@ int calcular_suporte_2_itens(
     int item_a,
     int item_b
 ) {
+    /* Para pares, a compra precisa conter os dois itens ao mesmo tempo. */
     int suporte = 0;
 
     for (int t = 0; t < base->total_transacoes; t++) {
@@ -45,6 +47,7 @@ int calcular_suporte_3_itens(
     int item_b,
     int item_c
 ) {
+    /* Para trios, a compra precisa conter os tres itens ao mesmo tempo. */
     int suporte = 0;
 
     for (int t = 0; t < base->total_transacoes; t++) {
@@ -86,6 +89,10 @@ static void gerar_regras_de_pares(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
+    /*
+     * Regra A -> B:
+     * confianca = suporte(A e B) / suporte(A)
+     */
     for (int i = 0; i < base->total_itens; i++) {
         for (int j = i + 1; j < base->total_itens; j++) {
             int suporte_a = calcular_suporte_1_item(base, i);
@@ -138,6 +145,10 @@ static void gerar_regras_de_trios(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
+    /*
+     * Para trios frequentes, as regras geradas usam dois itens no antecedente
+     * e um item no consequente, por exemplo {A, B} -> {C}.
+     */
     for (int i = 0; i < base->total_itens; i++) {
         for (int j = i + 1; j < base->total_itens; j++) {
             for (int k = j + 1; k < base->total_itens; k++) {

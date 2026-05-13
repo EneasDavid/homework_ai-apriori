@@ -4,6 +4,11 @@
 
 #define LIMITE_COMPRAS_EXIBIDAS 20
 
+/*
+ * Este modulo transforma os dados processados em um relatorio didatico.
+ * Os calculos ficam no modulo apriori; aqui apenas escrevemos os resultados.
+ */
+
 static void escrever_cabecalho_relatorio(
     FILE *saida,
     const char *nome_arquivo_entrada,

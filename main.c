@@ -5,6 +5,10 @@
 #include "saida/saida.h"
 
 int main() {
+    /*
+     * O main organiza o fluxo geral.
+     * A leitura, o processamento Apriori e a escrita do relatorio ficam em modulos separados.
+     */
     char nome_arquivo_entrada[100];
     char nome_arquivo_saida[] = "regras_associacao.txt";
 
