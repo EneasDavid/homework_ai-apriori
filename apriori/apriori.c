@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "apriori.h"
 
@@ -10,18 +9,11 @@ typedef struct {
     int suporte;
 } CandidatoApriori;
 
-static void gerar_regras_incertas_itemset(
-    BaseCompras *base,
-    ResultadoApriori *resultado,
-    const int itens[],
-    int tamanho,
-    int suporte
-);
-
 void inicializar_resultado(ResultadoApriori *resultado) {
     resultado->total_regras = 0;
     resultado->total_regras_incertas = 0;
     resultado->total_itemsets_frequentes = 0;
+    resultado->total_itemsets_incertos = 0;
     resultado->total_niveis = 0;
 
     for (int i = 0; i <= MAX_ITENS; i++) {
@@ -57,33 +49,6 @@ int calcular_suporte_itemset(
     return suporte;
 }
 
-int calcular_suporte_1_item(
-    BaseCompras *base,
-    int item
-) {
-    int itens[] = {item};
-    return calcular_suporte_itemset(base, itens, 1);
-}
-
-int calcular_suporte_2_itens(
-    BaseCompras *base,
-    int item_a,
-    int item_b
-) {
-    int itens[] = {item_a, item_b};
-    return calcular_suporte_itemset(base, itens, 2);
-}
-
-int calcular_suporte_3_itens(
-    BaseCompras *base,
-    int item_a,
-    int item_b,
-    int item_c
-) {
-    int itens[] = {item_a, item_b, item_c};
-    return calcular_suporte_itemset(base, itens, 3);
-}
-
 static int itemsets_iguais(
     const int a[],
     const int b[],
@@ -96,6 +61,16 @@ static int itemsets_iguais(
     }
 
     return 1;
+}
+
+static void copiar_itens(
+    int destino[],
+    const int origem[],
+    int tamanho
+) {
+    for (int i = 0; i < tamanho; i++) {
+        destino[i] = origem[i];
+    }
 }
 
 static int candidato_existe(
@@ -111,6 +86,30 @@ static int candidato_existe(
     }
 
     return 0;
+}
+
+static int adicionar_candidato(
+    CandidatoApriori candidatos[],
+    int *total_candidatos,
+    int max_candidatos,
+    const int itens[],
+    int tamanho
+) {
+    if (candidato_existe(candidatos, *total_candidatos, itens, tamanho)) {
+        return 1;
+    }
+
+    if (*total_candidatos >= max_candidatos) {
+        printf("Aviso: limite maximo de candidatos atingido no nivel %d.\n", tamanho);
+        return 0;
+    }
+
+    copiar_itens(candidatos[*total_candidatos].itens, itens, tamanho);
+    candidatos[*total_candidatos].tamanho = tamanho;
+    candidatos[*total_candidatos].suporte = 0;
+    (*total_candidatos)++;
+
+    return 1;
 }
 
 static int itemset_esta_em_nivel(
@@ -131,7 +130,7 @@ static int itemset_esta_em_nivel(
     return 0;
 }
 
-static int has_infrequent_subset(
+static int possui_subconjunto_infrequente(
     ResultadoApriori *resultado,
     NivelApriori *nivel_anterior,
     const int candidato[],
@@ -159,7 +158,43 @@ static int has_infrequent_subset(
     return 0;
 }
 
-static int apriori_gen(
+static int pode_fazer_join(
+    ItemsetFrequente *a,
+    ItemsetFrequente *b
+) {
+    for (int i = 0; i < a->tamanho - 1; i++) {
+        if (a->itens[i] != b->itens[i]) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static void fazer_join(
+    ItemsetFrequente *a,
+    ItemsetFrequente *b,
+    int candidato[]
+) {
+    copiar_itens(candidato, a->itens, a->tamanho);
+    candidato[a->tamanho] = b->itens[b->tamanho - 1];
+}
+
+static int candidato_passa_no_prune(
+    ResultadoApriori *resultado,
+    NivelApriori *nivel_anterior,
+    const int candidato[],
+    int tamanho
+) {
+    return !possui_subconjunto_infrequente(
+        resultado,
+        nivel_anterior,
+        candidato,
+        tamanho
+    );
+}
+
+static int gerar_candidatos_com_join_e_prune(
     ResultadoApriori *resultado,
     NivelApriori *nivel_anterior,
     CandidatoApriori candidatos[],
@@ -173,51 +208,53 @@ static int apriori_gen(
 
         for (int j = i + 1; j < nivel_anterior->total; j++) {
             ItemsetFrequente *b = &resultado->itemsets_frequentes[nivel_anterior->inicio + j];
-            int pode_juntar = 1;
 
-            for (int p = 0; p < nivel_anterior->tamanho - 1; p++) {
-                if (a->itens[p] != b->itens[p]) {
-                    pode_juntar = 0;
-                    break;
-                }
-            }
-
-            if (!pode_juntar) {
+            if (!pode_fazer_join(a, b)) {
                 continue;
             }
 
             int candidato[MAX_ITENS];
+            fazer_join(a, b, candidato);
 
-            for (int p = 0; p < nivel_anterior->tamanho; p++) {
-                candidato[p] = a->itens[p];
-            }
-
-            candidato[tamanho_novo - 1] = b->itens[nivel_anterior->tamanho - 1];
-
-            if (has_infrequent_subset(resultado, nivel_anterior, candidato, tamanho_novo)) {
+            if (!candidato_passa_no_prune(resultado, nivel_anterior, candidato, tamanho_novo)) {
                 continue;
             }
 
-            if (candidato_existe(candidatos, total_candidatos, candidato, tamanho_novo)) {
-                continue;
-            }
-
-            if (total_candidatos >= max_candidatos) {
-                printf("Aviso: limite maximo de candidatos atingido no nivel %d.\n", tamanho_novo);
+            if (!adicionar_candidato(
+                    candidatos,
+                    &total_candidatos,
+                    max_candidatos,
+                    candidato,
+                    tamanho_novo)) {
                 return total_candidatos;
             }
-
-            for (int p = 0; p < tamanho_novo; p++) {
-                candidatos[total_candidatos].itens[p] = candidato[p];
-            }
-
-            candidatos[total_candidatos].tamanho = tamanho_novo;
-            candidatos[total_candidatos].suporte = 0;
-            total_candidatos++;
         }
     }
 
     return total_candidatos;
+}
+
+static int adicionar_itemset_em_lista(
+    ItemsetFrequente itemsets[],
+    int *total_itemsets,
+    int max_itemsets,
+    const char *nome_lista,
+    const int itens[],
+    int tamanho,
+    int suporte
+) {
+    if (*total_itemsets >= max_itemsets) {
+        printf("Aviso: limite maximo de itemsets %s atingido.\n", nome_lista);
+        return 0;
+    }
+
+    ItemsetFrequente *itemset = &itemsets[*total_itemsets];
+    copiar_itens(itemset->itens, itens, tamanho);
+    itemset->tamanho = tamanho;
+    itemset->suporte = suporte;
+    (*total_itemsets)++;
+
+    return 1;
 }
 
 static int adicionar_itemset_frequente(
@@ -226,23 +263,32 @@ static int adicionar_itemset_frequente(
     int tamanho,
     int suporte
 ) {
-    if (resultado->total_itemsets_frequentes >= MAX_ITEMSETS_FREQUENTES) {
-        printf("Aviso: limite maximo de itemsets frequentes atingido.\n");
-        return 0;
-    }
+    return adicionar_itemset_em_lista(
+        resultado->itemsets_frequentes,
+        &resultado->total_itemsets_frequentes,
+        MAX_ITEMSETS_FREQUENTES,
+        "frequentes",
+        itens,
+        tamanho,
+        suporte
+    );
+}
 
-    ItemsetFrequente *itemset =
-        &resultado->itemsets_frequentes[resultado->total_itemsets_frequentes];
-
-    for (int i = 0; i < tamanho; i++) {
-        itemset->itens[i] = itens[i];
-    }
-
-    itemset->tamanho = tamanho;
-    itemset->suporte = suporte;
-    resultado->total_itemsets_frequentes++;
-
-    return 1;
+static int adicionar_itemset_incerto(
+    ResultadoApriori *resultado,
+    const int itens[],
+    int tamanho,
+    int suporte
+) {
+    return adicionar_itemset_em_lista(
+        resultado->itemsets_incertos,
+        &resultado->total_itemsets_incertos,
+        MAX_ITEMSETS_INCERTOS,
+        "incertos",
+        itens,
+        tamanho,
+        suporte
+    );
 }
 
 static NivelApriori *criar_nivel(
@@ -267,72 +313,124 @@ static NivelApriori *criar_nivel(
     return nivel;
 }
 
-static void executar_busca_level_wise(
+static void gerar_l1(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
     NivelApriori *l1 = criar_nivel(resultado, 1, base->total_itens);
 
     for (int item = 0; item < base->total_itens; item++) {
-        int suporte = calcular_suporte_1_item(base, item);
+        int itens[] = {item};
+        int suporte = calcular_suporte_itemset(base, itens, 1);
 
         if (suporte >= MIN_SUP) {
-            int itens[] = {item};
-
             if (adicionar_itemset_frequente(resultado, itens, 1, suporte)) {
                 l1->total++;
             }
         }
     }
+}
+
+static void classificar_candidato_por_suporte(
+    ResultadoApriori *resultado,
+    NivelApriori *nivel_atual,
+    CandidatoApriori *candidato,
+    int suporte
+) {
+    if (suporte >= MIN_SUP) {
+        if (adicionar_itemset_frequente(
+                resultado,
+                candidato->itens,
+                candidato->tamanho,
+                suporte)) {
+            nivel_atual->total++;
+        }
+
+        return;
+    }
+
+    if (suporte == 1) {
+        adicionar_itemset_incerto(
+            resultado,
+            candidato->itens,
+            candidato->tamanho,
+            suporte
+        );
+    }
+}
+
+static void contar_suporte_e_formar_lk(
+    BaseCompras *base,
+    ResultadoApriori *resultado,
+    NivelApriori *nivel_atual,
+    CandidatoApriori candidatos[],
+    int total_candidatos
+) {
+    for (int i = 0; i < total_candidatos; i++) {
+        int suporte =
+            calcular_suporte_itemset(base, candidatos[i].itens, candidatos[i].tamanho);
+
+        classificar_candidato_por_suporte(
+            resultado,
+            nivel_atual,
+            &candidatos[i],
+            suporte
+        );
+    }
+}
+
+static int executar_nivel_k(
+    BaseCompras *base,
+    ResultadoApriori *resultado,
+    int k
+) {
+    NivelApriori *nivel_anterior = &resultado->niveis[k - 1];
+    CandidatoApriori *candidatos =
+        malloc(sizeof(CandidatoApriori) * MAX_ITEMSETS_FREQUENTES);
+
+    if (candidatos == NULL) {
+        printf("Erro: memoria insuficiente para gerar candidatos.\n");
+        return 0;
+    }
+
+    int total_candidatos =
+        gerar_candidatos_com_join_e_prune(
+            resultado,
+            nivel_anterior,
+            candidatos,
+            MAX_ITEMSETS_FREQUENTES
+        );
+
+    if (total_candidatos == 0) {
+        free(candidatos);
+        return 0;
+    }
+
+    NivelApriori *nivel_atual = criar_nivel(resultado, k, total_candidatos);
+
+    contar_suporte_e_formar_lk(
+        base,
+        resultado,
+        nivel_atual,
+        candidatos,
+        total_candidatos
+    );
+
+    free(candidatos);
+
+    return nivel_atual->total > 0;
+}
+
+static void executar_busca_level_wise(
+    BaseCompras *base,
+    ResultadoApriori *resultado
+) {
+    gerar_l1(base, resultado);
 
     int k = 2;
 
     while (k <= MAX_ITENS && resultado->niveis[k - 1].total > 0) {
-        NivelApriori *nivel_anterior = &resultado->niveis[k - 1];
-        CandidatoApriori *candidatos =
-            malloc(sizeof(CandidatoApriori) * MAX_ITEMSETS_FREQUENTES);
-
-        if (candidatos == NULL) {
-            printf("Erro: memoria insuficiente para gerar candidatos.\n");
-            return;
-        }
-
-        int total_candidatos =
-            apriori_gen(resultado, nivel_anterior, candidatos, MAX_ITEMSETS_FREQUENTES);
-
-        if (total_candidatos == 0) {
-            free(candidatos);
-            break;
-        }
-
-        NivelApriori *nivel_atual = criar_nivel(resultado, k, total_candidatos);
-
-        for (int i = 0; i < total_candidatos; i++) {
-            int suporte =
-                calcular_suporte_itemset(base, candidatos[i].itens, candidatos[i].tamanho);
-
-            if (suporte >= MIN_SUP) {
-                if (adicionar_itemset_frequente(
-                        resultado,
-                        candidatos[i].itens,
-                        candidatos[i].tamanho,
-                        suporte)) {
-                    nivel_atual->total++;
-                }
-            } else if (suporte == 1) {
-                gerar_regras_incertas_itemset(
-                    base,
-                    resultado,
-                    candidatos[i].itens,
-                    candidatos[i].tamanho,
-                    suporte
-                );
-            }
-        }
-
-        free(candidatos);
-
-        if (nivel_atual->total == 0) {
+        if (!executar_nivel_k(base, resultado, k)) {
             break;
         }
 
@@ -362,229 +460,10 @@ int buscar_suporte_itemset(
     return 0;
 }
 
-static void formatar_itemset(
-    BaseCompras *base,
-    const int itens[],
-    int tamanho,
-    char destino[],
-    int tamanho_destino
-) {
-    int usados = snprintf(destino, tamanho_destino, "{");
-
-    for (int i = 0; i < tamanho && usados < tamanho_destino; i++) {
-        usados += snprintf(
-            destino + usados,
-            tamanho_destino - usados,
-            "%s%s",
-            i == 0 ? "" : ", ",
-            base->itens[itens[i]]
-        );
-    }
-
-    if (usados < tamanho_destino) {
-        snprintf(destino + usados, tamanho_destino - usados, "}");
-    } else {
-        destino[tamanho_destino - 1] = '\0';
-    }
-}
-
-static void adicionar_regra(
-    ResultadoApriori *resultado,
-    const char *antecedente,
-    const char *consequente,
-    int suporte_antecedente,
-    int suporte_conjunto,
-    float confianca
-) {
-    if (resultado->total_regras >= MAX_REGRAS) {
-        return;
-    }
-
-    RegraAssociacao *regra = &resultado->regras[resultado->total_regras];
-
-    strcpy(regra->antecedente, antecedente);
-    strcpy(regra->consequente, consequente);
-
-    regra->suporte_antecedente = suporte_antecedente;
-    regra->suporte_conjunto = suporte_conjunto;
-    regra->confianca = confianca;
-
-    resultado->total_regras++;
-}
-
-static void adicionar_regra_incerta(
-    ResultadoApriori *resultado,
-    const char *antecedente,
-    const char *consequente,
-    int suporte_antecedente,
-    int suporte_conjunto,
-    float confianca
-) {
-    if (resultado->total_regras_incertas >= MAX_REGRAS_INCERTAS) {
-        return;
-    }
-
-    RegraAssociacao *regra = &resultado->regras_incertas[resultado->total_regras_incertas];
-
-    strcpy(regra->antecedente, antecedente);
-    strcpy(regra->consequente, consequente);
-
-    regra->suporte_antecedente = suporte_antecedente;
-    regra->suporte_conjunto = suporte_conjunto;
-    regra->confianca = confianca;
-
-    resultado->total_regras_incertas++;
-}
-
-static void gerar_regras_incertas_itemset(
-    BaseCompras *base,
-    ResultadoApriori *resultado,
-    const int itens[],
-    int tamanho,
-    int suporte
-) {
-    if (tamanho < 2 || tamanho >= 63 || suporte != 1) {
-        return;
-    }
-
-    unsigned long long total_mascaras = 1ULL << tamanho;
-
-    for (unsigned long long mascara = 1; mascara < total_mascaras - 1; mascara++) {
-        int antecedente[MAX_ITENS];
-        int consequente[MAX_ITENS];
-        int total_antecedente = 0;
-        int total_consequente = 0;
-
-        for (int i = 0; i < tamanho; i++) {
-            if (mascara & (1ULL << i)) {
-                antecedente[total_antecedente++] = itens[i];
-            } else {
-                consequente[total_consequente++] = itens[i];
-            }
-        }
-
-        int suporte_antecedente =
-            calcular_suporte_itemset(base, antecedente, total_antecedente);
-
-        if (suporte_antecedente == 0) {
-            continue;
-        }
-
-        float confianca = (float) suporte / suporte_antecedente;
-        char texto_antecedente[500];
-        char texto_consequente[500];
-
-        formatar_itemset(
-            base,
-            antecedente,
-            total_antecedente,
-            texto_antecedente,
-            sizeof(texto_antecedente)
-        );
-        formatar_itemset(
-            base,
-            consequente,
-            total_consequente,
-            texto_consequente,
-            sizeof(texto_consequente)
-        );
-
-        adicionar_regra_incerta(
-            resultado,
-            texto_antecedente,
-            texto_consequente,
-            suporte_antecedente,
-            suporte,
-            confianca
-        );
-    }
-}
-
-static void gerar_regras_itemset(
-    BaseCompras *base,
-    ResultadoApriori *resultado,
-    ItemsetFrequente *itemset
-) {
-    if (itemset->tamanho >= 63) {
-        return;
-    }
-
-    unsigned long long total_mascaras = 1ULL << itemset->tamanho;
-
-    for (unsigned long long mascara = 1; mascara < total_mascaras - 1; mascara++) {
-        int antecedente[MAX_ITENS];
-        int consequente[MAX_ITENS];
-        int total_antecedente = 0;
-        int total_consequente = 0;
-
-        for (int i = 0; i < itemset->tamanho; i++) {
-            if (mascara & (1ULL << i)) {
-                antecedente[total_antecedente++] = itemset->itens[i];
-            } else {
-                consequente[total_consequente++] = itemset->itens[i];
-            }
-        }
-
-        int suporte_antecedente =
-            buscar_suporte_itemset(resultado, antecedente, total_antecedente);
-
-        if (suporte_antecedente == 0) {
-            continue;
-        }
-
-        float confianca = (float) itemset->suporte / suporte_antecedente;
-
-        if (confianca >= MIN_CONF) {
-            char texto_antecedente[500];
-            char texto_consequente[500];
-
-            formatar_itemset(
-                base,
-                antecedente,
-                total_antecedente,
-                texto_antecedente,
-                sizeof(texto_antecedente)
-            );
-            formatar_itemset(
-                base,
-                consequente,
-                total_consequente,
-                texto_consequente,
-                sizeof(texto_consequente)
-            );
-
-            adicionar_regra(
-                resultado,
-                texto_antecedente,
-                texto_consequente,
-                suporte_antecedente,
-                itemset->suporte,
-                confianca
-            );
-        }
-    }
-}
-
-static void gerar_regras_associacao(
-    BaseCompras *base,
-    ResultadoApriori *resultado
-) {
-    for (int nivel = 2; nivel <= resultado->total_niveis; nivel++) {
-        NivelApriori *nivel_atual = &resultado->niveis[nivel];
-
-        for (int i = 0; i < nivel_atual->total; i++) {
-            ItemsetFrequente *itemset =
-                &resultado->itemsets_frequentes[nivel_atual->inicio + i];
-
-            gerar_regras_itemset(base, resultado, itemset);
-        }
-    }
-}
-
 void aplicar_apriori(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
     executar_busca_level_wise(base, resultado);
-    gerar_regras_associacao(base, resultado);
+    gerar_metadados_apriori(base, resultado);
 }

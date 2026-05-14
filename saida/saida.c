@@ -203,11 +203,15 @@ static void escrever_regras_maior_nivel_confianca(
         }
 
         if (deve_exibir) {
-            fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
-                    contador,
-                    regra.antecedente,
-                    regra.consequente,
-                    regra.confianca * 100);
+        fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
+                contador,
+                regra.antecedente,
+                regra.consequente,
+                regra.confianca * 100);
+            fprintf(saida, "  Itemset completo: %s | Frequencia: %d | Relevancia na base: %.4f%%\n",
+                    regra.itemset,
+                    regra.frequencia,
+                    regra.relevancia * 100);
 
             contador++;
         }
@@ -534,9 +538,17 @@ static void escrever_regras(
                 regra.consequente);
 
         fprintf(saida, "Dados usados no calculo:\n");
+        fprintf(saida, "- Itemset completo: %s\n", regra.itemset);
+        fprintf(saida, "- Consequente: %s\n", regra.consequente);
+        fprintf(saida, "- Frequencia do itemset completo: %d\n", regra.frequencia);
         fprintf(saida, "- Suporte do antecedente: %d\n", regra.suporte_antecedente);
         fprintf(saida, "- Suporte do conjunto completo: %d\n", regra.suporte_conjunto);
-        fprintf(saida, "- Confianca: %.2f%%\n\n", regra.confianca * 100);
+        fprintf(saida, "- Suporte relativo do conjunto completo: %.4f%%\n",
+                regra.suporte * 100);
+        fprintf(saida, "- Relevancia na base inteira: %.4f%%\n",
+                regra.relevancia * 100);
+        fprintf(saida, "- Confianca: %.2f%%\n", regra.confianca * 100);
+        fprintf(saida, "- Regra incerta: %s\n\n", regra.incerta ? "sim" : "nao");
 
         fprintf(saida, "Como a confianca foi calculada:\n");
         fprintf(saida, "Confianca = Suporte do conjunto completo / Suporte do antecedente\n");
@@ -546,6 +558,14 @@ static void escrever_regras(
         fprintf(saida, "Confianca = %.4f\n", regra.confianca);
         fprintf(saida, "Confianca em porcentagem = %.4f * 100\n", regra.confianca);
         fprintf(saida, "Confianca em porcentagem = %.2f%%\n\n", regra.confianca * 100);
+
+        fprintf(saida, "Como a relevancia foi calculada:\n");
+        fprintf(saida, "Relevancia = Suporte do conjunto completo / Total de transacoes\n");
+        fprintf(saida, "Relevancia = %d / %d\n",
+                regra.suporte_conjunto,
+                regra.total_transacoes);
+        fprintf(saida, "Relevancia = %.4f\n", regra.relevancia);
+        fprintf(saida, "Relevancia em porcentagem = %.4f%%\n\n", regra.relevancia * 100);
 
         fprintf(saida, "Interpretacao:\n");
         fprintf(saida, "Das %d compras que possuem %s, %d tambem possuem %s.\n",
@@ -586,13 +606,20 @@ static void escrever_regras_incertas(
     for (int i = 0; i < resultado->total_regras_incertas; i++) {
         RegraAssociacao regra = resultado->regras_incertas[i];
 
-        fprintf(saida, "Regra incerta %d: %s -> %s | Suporte do conjunto: %d | ",
+        fprintf(saida, "Regra incerta %d: %s -> %s | Itemset completo: %s | ",
                 i + 1,
                 regra.antecedente,
                 regra.consequente,
-                regra.suporte_conjunto);
-        fprintf(saida, "Confianca calculada: %.2f%% | Classificacao: incerta\n",
-                regra.confianca * 100);
+                regra.itemset);
+        fprintf(saida, "Suporte do conjunto: %d | Suporte relativo: %.4f%% | ",
+                regra.suporte_conjunto,
+                regra.suporte * 100);
+        fprintf(saida, "Frequencia: %d | Relevancia: %.4f%% | ",
+                regra.frequencia,
+                regra.relevancia * 100);
+        fprintf(saida, "Confianca calculada: %.2f%% | Flag incerta: %s\n",
+                regra.confianca * 100,
+                regra.incerta ? "sim" : "nao");
     }
 
     fprintf(saida, "\nTotal de regras incertas: %d\n\n", resultado->total_regras_incertas);
