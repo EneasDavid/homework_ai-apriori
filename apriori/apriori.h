@@ -94,7 +94,7 @@ void gerar_metadados_apriori(
     ResultadoApriori *resultado
 );
 
-void aplicar_apriori(
+int aplicar_apriori(
     BaseCompras *base,
     ResultadoApriori *resultado
 );

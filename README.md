@@ -86,6 +86,7 @@ APRIORI/
 | `saida/saida.h` | Deve declarar a funcao publica que gera o relatorio. |
 | `saida/saida.c` | Deve apenas organizar e escrever o relatorio usando os dados ja calculados. |
 | `Makefile` | Deve compilar, executar e limpar os arquivos gerados do projeto. |
+| `tests/test_apriori.c` | Deve validar automaticamente a operacao basica do Apriori. |
 
 ## Fluxo da aplicacao
 
@@ -158,6 +159,7 @@ Principais alvos:
 |---|---|
 | `make` | Compila o projeto. |
 | `make run` | Compila, se necessario, e executa o programa. |
+| `make test` | Compila e executa os testes automaticos do Apriori. |
 | `make clean` | Remove os arquivos gerados. |
 
 ---
@@ -214,6 +216,22 @@ Processamento finalizado.
 ### Arquivo de entrada nao encontrado
 
 Verifique se `compras.txt` esta na raiz do projeto.
+
+### Arquivo sem dados validos
+
+O leitor rejeita arquivo vazio, arquivo sem transacoes validas e linhas formadas apenas por espacos ou virgulas.
+
+### Dados fora dos limites
+
+O programa valida:
+
+- mais de `MAX_TRANSACOES` transacoes;
+- mais de `MAX_ITENS` itens diferentes;
+- linha maior que `MAX_LINHA`;
+- nome de item maior que `MAX_NOME_ITEM`;
+- regras acima de `MAX_REGRAS` ou `MAX_REGRAS_INCERTAS`.
+
+Itens repetidos na mesma compra sao avisados e ignorados.
 
 ### Erro ao compilar por causa dos headers
 

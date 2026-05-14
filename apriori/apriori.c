@@ -24,6 +24,32 @@ void inicializar_resultado(ResultadoApriori *resultado) {
     }
 }
 
+static int validar_configuracao_apriori(
+    BaseCompras *base
+) {
+    if (MIN_SUP <= 0) {
+        printf("Erro: MIN_SUP deve ser maior que zero.\n");
+        return 0;
+    }
+
+    if (MIN_CONF < 0 || MIN_CONF > 1) {
+        printf("Erro: MIN_CONF deve estar entre 0 e 1.\n");
+        return 0;
+    }
+
+    if (base->total_transacoes <= 0) {
+        printf("Erro: a base precisa ter pelo menos uma transacao valida.\n");
+        return 0;
+    }
+
+    if (base->total_itens <= 0) {
+        printf("Erro: a base precisa ter pelo menos um item valido.\n");
+        return 0;
+    }
+
+    return 1;
+}
+
 int calcular_suporte_itemset(
     BaseCompras *base,
     const int itens[],
@@ -460,10 +486,16 @@ int buscar_suporte_itemset(
     return 0;
 }
 
-void aplicar_apriori(
+int aplicar_apriori(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
+    if (!validar_configuracao_apriori(base)) {
+        return 0;
+    }
+
     executar_busca_level_wise(base, resultado);
     gerar_metadados_apriori(base, resultado);
+
+    return 1;
 }

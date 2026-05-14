@@ -38,7 +38,10 @@ int main() {
 
     printf("\n[2/3] Aplicando algoritmo Apriori...\n");
 
-    aplicar_apriori(&base, &resultado);
+    if (!aplicar_apriori(&base, &resultado)) {
+        printf("Erro ao aplicar o algoritmo Apriori.\n");
+        return 1;
+    }
 
     printf("Apriori executado com sucesso.\n");
     printf("Total de regras encontradas: %d\n", resultado.total_regras);
