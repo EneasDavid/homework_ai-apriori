@@ -1,8 +1,6 @@
 # Projeto Apriori em C
 
-Projeto didatico em C que le uma base de compras, aplica uma versao simples do algoritmo Apriori e gera um relatorio com regras de associacao.
-
-O README serve como mapa do projeto. As explicacoes tecnicas ficam perto do codigo onde cada tecnica e usada.
+Projeto didatico em C que le uma base de compras, aplica o algoritmo Apriori com busca level-wise e gera um relatorio com itemsets frequentes e regras de associacao.
 
 ---
 ## Como compilar
@@ -82,7 +80,7 @@ APRIORI/
 | `leitor/leitor.h` | Define a estrutura `BaseCompras` e os limites da base. |
 | `leitor/leitor.c` | Le o arquivo de compras e transforma os dados em memoria. |
 | `apriori/apriori.h` | Define as estruturas e parametros das regras de associacao. |
-| `apriori/apriori.c` | Calcula suporte, confianca e gera regras. |
+| `apriori/apriori.c` | Executa o Apriori level-wise, gera candidatos Ck, aplica join/prune, calcula suporte, confianca, regras validas e regras incertas. |
 | `saida/saida.h` | Declara a funcao de geracao do relatorio. |
 | `saida/saida.c` | Escreve o arquivo `regras_associacao.txt`. |
 | `Makefile` | Automatiza compilacao, execucao e limpeza do projeto. |
@@ -191,7 +189,10 @@ Processamento finalizado.
 | Organizacao do fluxo | `main.c` |
 | Leitura de arquivo, `strtok`, normalizacao de texto | `leitor/leitor.c` |
 | Matriz de transacoes e limites da base | `leitor/leitor.h` |
+| Busca level-wise L1, L2, ..., Lk | `apriori/apriori.c` |
+| Join, prune e `has_infrequent_subset` | `apriori/apriori.c` |
 | Suporte, confianca e regras de associacao | `apriori/apriori.c` |
+| Regras incertas com suporte igual a 1 | `apriori/apriori.c` e `saida/saida.c` |
 | Parametros `MIN_SUP`, `MIN_CONF` e estruturas de regra | `apriori/apriori.h` |
 | Escrita de arquivo com `fprintf` | `saida/saida.c` |
 | Compilacao com `make` | `Makefile` |

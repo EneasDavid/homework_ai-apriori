@@ -12,8 +12,8 @@ int main() {
     char nome_arquivo_entrada[100];
     char nome_arquivo_saida[] = "regras_associacao.txt";
 
-    BaseCompras base;
-    ResultadoApriori resultado;
+    static BaseCompras base;
+    static ResultadoApriori resultado;
 
     printf("========================================\n");
     printf(" ALGORITMO APRIORI - VERSAO MODULAR\n");
