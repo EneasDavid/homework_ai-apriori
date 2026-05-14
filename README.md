@@ -1,8 +1,6 @@
 # Projeto Apriori em C
 
-Projeto didatico em C que le uma base de compras, aplica uma versao simples do algoritmo Apriori e gera um relatorio com regras de associacao.
-
-O README serve como mapa do projeto. As explicacoes tecnicas ficam perto do codigo onde cada tecnica e usada.
+Projeto didatico em C que le uma base de compras, aplica o algoritmo Apriori com busca level-wise e gera um relatorio com itemsets frequentes e regras de associacao.
 
 ---
 ## Como compilar
@@ -68,24 +66,26 @@ APRIORI/
 │   └── leitor.h
 ├── apriori/
 │   ├── apriori.c
+│   ├── metadados_apriori.c
 │   └── apriori.h
 └── saida/
     ├── saida.c
     └── saida.h
 ```
 
-## Responsabilidade de cada parte
+## O que cada arquivo deve fazer
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `main.c` | Coordena o fluxo do programa. |
-| `leitor/leitor.h` | Define a estrutura `BaseCompras` e os limites da base. |
-| `leitor/leitor.c` | Le o arquivo de compras e transforma os dados em memoria. |
-| `apriori/apriori.h` | Define as estruturas e parametros das regras de associacao. |
-| `apriori/apriori.c` | Calcula suporte, confianca e gera regras. |
-| `saida/saida.h` | Declara a funcao de geracao do relatorio. |
-| `saida/saida.c` | Escreve o arquivo `regras_associacao.txt`. |
-| `Makefile` | Automatiza compilacao, execucao e limpeza do projeto. |
+| `main.c` | Deve apenas coordenar o fluxo: ler entrada, chamar Apriori e gerar saida. |
+| `leitor/leitor.h` | Deve declarar a estrutura da base de compras e seus limites. |
+| `leitor/leitor.c` | Deve ler o arquivo de compras, normalizar itens e preencher a base em memoria. |
+| `apriori/apriori.h` | Deve declarar as estruturas, constantes e funcoes publicas do modulo Apriori. |
+| `apriori/apriori.c` | Deve conter somente o algoritmo Apriori: suporte, join, prune, busca level-wise e itemsets encontrados. |
+| `apriori/metadados_apriori.c` | Deve transformar os itemsets do Apriori em metadados prontos para a saida, como regras, confianca, relevancia e flag incerta. |
+| `saida/saida.h` | Deve declarar a funcao publica que gera o relatorio. |
+| `saida/saida.c` | Deve apenas organizar e escrever o relatorio usando os dados ja calculados. |
+| `Makefile` | Deve compilar, executar e limpar os arquivos gerados do projeto. |
 
 ## Fluxo da aplicacao
 
@@ -106,6 +106,12 @@ regras_associacao.txt
 ```
 
 O `main.c` apenas conecta essas etapas. A regra do projeto e manter cada responsabilidade no seu proprio modulo.
+
+Resumo importante:
+
+- `apriori.c` nao deve formatar texto do relatorio.
+- `saida.c` nao deve calcular Apriori, confianca ou relevancia.
+- `metadados_apriori.c` deve ser a ponte entre o algoritmo e a saida.
 
 ---
 
@@ -137,7 +143,7 @@ O `Makefile` guarda o comando de compilacao do projeto.
 Assim, em vez de digitar:
 
 ```bash
-gcc main.c leitor/leitor.c apriori/apriori.c saida/saida.c -Ileitor -Iapriori -Isaida -o programa_apriori
+gcc main.c leitor/leitor.c apriori/apriori.c apriori/metadados_apriori.c saida/saida.c -Ileitor -Iapriori -Isaida -o programa_apriori
 ```
 
 voce usa apenas:
@@ -191,7 +197,12 @@ Processamento finalizado.
 | Organizacao do fluxo | `main.c` |
 | Leitura de arquivo, `strtok`, normalizacao de texto | `leitor/leitor.c` |
 | Matriz de transacoes e limites da base | `leitor/leitor.h` |
-| Suporte, confianca e regras de associacao | `apriori/apriori.c` |
+| Busca level-wise L1, L2, ..., Lk | `apriori/apriori.c` |
+| Join, prune e `has_infrequent_subset` | `apriori/apriori.c` |
+| Suporte dos itemsets | `apriori/apriori.c` |
+| Confianca e regras de associacao | `apriori/metadados_apriori.c` |
+| Relevancia da regra na base inteira | `apriori/metadados_apriori.c` |
+| Regras incertas com suporte igual a 1 | `apriori/apriori.c`, `apriori/metadados_apriori.c` e `saida/saida.c` |
 | Parametros `MIN_SUP`, `MIN_CONF` e estruturas de regra | `apriori/apriori.h` |
 | Escrita de arquivo com `fprintf` | `saida/saida.c` |
 | Compilacao com `make` | `Makefile` |

@@ -89,6 +89,48 @@ static void escrever_conceitos(FILE *saida) {
     fprintf(saida, "Interpretacao do exemplo:\n");
     fprintf(saida, "Das 79 compras que possuem o antecedente, 56 tambem possuem o consequente.\n");
     fprintf(saida, "Por isso, a regra tem 70.89%% de confianca.\n\n");
+
+    fprintf(saida, "9. Busca level-wise do Apriori\n");
+    fprintf(saida, "O Apriori encontra primeiro L1, depois usa L1 para gerar C2 e L2,\n");
+    fprintf(saida, "usa L2 para gerar C3 e L3, e continua ate nao existir mais Lk frequente.\n\n");
+
+    fprintf(saida, "10. Apriori Property\n");
+    fprintf(saida, "Todo subconjunto nao vazio de um itemset frequente tambem deve ser frequente.\n");
+    fprintf(saida, "Por isso, se um candidato possui algum subconjunto infrequente, ele e podado\n");
+    fprintf(saida, "antes da contagem de suporte.\n\n");
+
+    fprintf(saida, "11. Join e prune\n");
+    fprintf(saida, "Na etapa de join, itemsets de Lk-1 sao combinados para formar candidatos Ck.\n");
+    fprintf(saida, "Isso significa que o algoritmo usa itemsets frequentes de tamanho k-1\n");
+    fprintf(saida, "para tentar montar itemsets candidatos de tamanho k.\n\n");
+
+    fprintf(saida, "Exemplo de join:\n");
+    fprintf(saida, "Se L2 possui {leite, pao} e {leite, manteiga}, esses dois itemsets\n");
+    fprintf(saida, "podem ser juntados porque compartilham o prefixo {leite}.\n");
+    fprintf(saida, "O candidato gerado em C3 seria {leite, pao, manteiga}.\n\n");
+
+    fprintf(saida, "Depois vem o prune, que significa poda.\n");
+    fprintf(saida, "A ideia e remover candidatos impossiveis antes de gastar tempo contando\n");
+    fprintf(saida, "o suporte deles em todas as compras.\n");
+    fprintf(saida, "Para isso, o algoritmo olha para todos os subconjuntos de tamanho k-1\n");
+    fprintf(saida, "do candidato que acabou de ser gerado.\n");
+    fprintf(saida, "Se o candidato tem tamanho 3, ele verifica todos os pares dentro dele.\n");
+    fprintf(saida, "Se o candidato tem tamanho 4, ele verifica todos os trios dentro dele,\n");
+    fprintf(saida, "e assim por diante.\n\n");
+
+    fprintf(saida, "O motivo e a Apriori Property:\n");
+    fprintf(saida, "se um itemset e frequente, todos os seus subconjuntos tambem precisam ser frequentes.\n");
+    fprintf(saida, "Logo, se um unico subconjunto do candidato nao esta em Lk-1,\n");
+    fprintf(saida, "esse candidato nao tem chance de ser frequente.\n");
+    fprintf(saida, "Nesse caso, ele e removido imediatamente e seu suporte nem e contado.\n\n");
+
+    fprintf(saida, "Exemplo de prune:\n");
+    fprintf(saida, "Para aceitar o candidato {leite, pao, manteiga}, os subconjuntos\n");
+    fprintf(saida, "{leite, pao}, {leite, manteiga} e {pao, manteiga} precisam ser frequentes.\n");
+    fprintf(saida, "Se {pao, manteiga} nao estiver em L2, o candidato {leite, pao, manteiga}\n");
+    fprintf(saida, "e descartado antes mesmo de contar seu suporte nas compras.\n");
+    fprintf(saida, "Isso acontece porque, se {pao, manteiga} ja nao aparece vezes suficientes,\n");
+    fprintf(saida, "{leite, pao, manteiga} tambem nao pode aparecer vezes suficientes.\n\n");
 }
 
 static void escrever_regras_maior_nivel_confianca(
@@ -122,7 +164,14 @@ static void escrever_regras_maior_nivel_confianca(
     fprintf(saida, "Quantidade encontrada em cada nivel:\n");
     fprintf(saida, "- Regras muito fortes, com confianca >= 90%%: %d\n", regras_muito_fortes);
     fprintf(saida, "- Regras fortes, com confianca entre 70%% e 89.99%%: %d\n", regras_fortes);
-    fprintf(saida, "- Regras moderadas ou fracas, abaixo de 70%%: %d\n\n", regras_moderadas);
+    fprintf(saida, "- Regras moderadas ou fracas, abaixo de 70%%: %d\n", regras_moderadas);
+    fprintf(saida, "- Regras incertas, com suporte do conjunto igual a 1: %d\n\n",
+            resultado->total_regras_incertas);
+
+    if (resultado->total_regras_incertas > 0) {
+        fprintf(saida, "Observacao: regras incertas nao entram no nivel exibido abaixo,\n");
+        fprintf(saida, "mesmo quando a confianca delas seria alta, porque possuem dados insuficientes.\n\n");
+    }
 
     int nivel_escolhido;
 
@@ -154,11 +203,15 @@ static void escrever_regras_maior_nivel_confianca(
         }
 
         if (deve_exibir) {
-            fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
-                    contador,
-                    regra.antecedente,
-                    regra.consequente,
-                    regra.confianca * 100);
+        fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
+                contador,
+                regra.antecedente,
+                regra.consequente,
+                regra.confianca * 100);
+            fprintf(saida, "  Itemset completo: %s | Frequencia: %d | Relevancia na base: %.4f%%\n",
+                    regra.itemset,
+                    regra.frequencia,
+                    regra.relevancia * 100);
 
             contador++;
         }
@@ -220,89 +273,218 @@ static void escrever_itens_encontrados(
     fprintf(saida, "\n");
 }
 
-static void escrever_itemsets_frequentes_1(
+static void escrever_itemset_formatado(
     FILE *saida,
-    BaseCompras *base
+    BaseCompras *base,
+    ItemsetFrequente *itemset
+) {
+    fprintf(saida, "{");
+
+    for (int i = 0; i < itemset->tamanho; i++) {
+        fprintf(saida, "%s%s", i == 0 ? "" : ", ", base->itens[itemset->itens[i]]);
+    }
+
+    fprintf(saida, "} -> suporte = %d\n", itemset->suporte);
+}
+
+static void escrever_itemsets_frequentes(
+    FILE *saida,
+    BaseCompras *base,
+    ResultadoApriori *resultado
 ) {
     fprintf(saida, "========================================\n");
-    fprintf(saida, " ITEMSETS FREQUENTES DE TAMANHO 1\n");
+    fprintf(saida, " BUSCA LEVEL-WISE APRIORI\n");
     fprintf(saida, "========================================\n\n");
 
-    fprintf(saida, "Aqui aparecem os itens individuais que atingiram o suporte minimo.\n\n");
+    fprintf(saida, "O algoritmo gerou candidatos Ck a partir de Lk-1 usando join,\n");
+    fprintf(saida, "aplicou prune com a Apriori Property e manteve em Lk apenas candidatos\n");
+    fprintf(saida, "com suporte maior ou igual a %d.\n\n", MIN_SUP);
 
+    for (int nivel = 1; nivel <= resultado->total_niveis; nivel++) {
+        NivelApriori *nivel_atual = &resultado->niveis[nivel];
+
+        fprintf(saida, "========================================\n");
+        fprintf(saida, " ITEMSETS FREQUENTES L%d\n", nivel);
+        fprintf(saida, "========================================\n\n");
+
+        fprintf(saida, "Tamanho dos itemsets: %d\n", nivel);
+        fprintf(saida, "Candidatos C%d gerados/avaliados: %d\n", nivel, nivel_atual->total_candidatos);
+        fprintf(saida, "Itemsets frequentes em L%d: %d\n\n", nivel, nivel_atual->total);
+
+        if (nivel_atual->total == 0) {
+            fprintf(saida, "Nenhum itemset frequente encontrado neste nivel.\n\n");
+            continue;
+        }
+
+        for (int i = 0; i < nivel_atual->total; i++) {
+            ItemsetFrequente *itemset =
+                &resultado->itemsets_frequentes[nivel_atual->inicio + i];
+
+            escrever_itemset_formatado(saida, base, itemset);
+        }
+
+        fprintf(saida, "\n");
+    }
+
+    fprintf(saida, "Total geral de itemsets frequentes: %d\n\n",
+            resultado->total_itemsets_frequentes);
+}
+
+static int itemset_e_subconjunto(
+    ItemsetFrequente *possivel_subconjunto,
+    ItemsetFrequente *possivel_superconjunto
+) {
+    int encontrados = 0;
+
+    for (int i = 0; i < possivel_subconjunto->tamanho; i++) {
+        for (int j = 0; j < possivel_superconjunto->tamanho; j++) {
+            if (possivel_subconjunto->itens[i] == possivel_superconjunto->itens[j]) {
+                encontrados++;
+                break;
+            }
+        }
+    }
+
+    return encontrados == possivel_subconjunto->tamanho;
+}
+
+static int itemset_tem_superconjunto_frequente(
+    ResultadoApriori *resultado,
+    ItemsetFrequente *itemset,
+    int exigir_mesmo_suporte
+) {
+    for (int i = 0; i < resultado->total_itemsets_frequentes; i++) {
+        ItemsetFrequente *outro = &resultado->itemsets_frequentes[i];
+
+        if (outro->tamanho <= itemset->tamanho) {
+            continue;
+        }
+
+        if (exigir_mesmo_suporte && outro->suporte != itemset->suporte) {
+            continue;
+        }
+
+        if (itemset_e_subconjunto(itemset, outro)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void escrever_itemsets_fechados_e_maximais(
+    FILE *saida,
+    BaseCompras *base,
+    ResultadoApriori *resultado
+) {
+    int total_fechados = 0;
+    int total_maximais = 0;
+
+    fprintf(saida, "========================================\n");
+    fprintf(saida, " ITEMSETS FECHADOS E MAXIMAIS\n");
+    fprintf(saida, "========================================\n\n");
+
+    fprintf(saida, "Itemset fechado: nao possui superconjunto frequente com o mesmo suporte.\n");
+    fprintf(saida, "Itemset maximal: nao possui nenhum superconjunto frequente.\n\n");
+
+    fprintf(saida, "Itemsets fechados:\n\n");
+
+    for (int i = 0; i < resultado->total_itemsets_frequentes; i++) {
+        ItemsetFrequente *itemset = &resultado->itemsets_frequentes[i];
+
+        if (!itemset_tem_superconjunto_frequente(resultado, itemset, 1)) {
+            escrever_itemset_formatado(saida, base, itemset);
+            total_fechados++;
+        }
+    }
+
+    fprintf(saida, "\nTotal de itemsets fechados: %d\n\n", total_fechados);
+    fprintf(saida, "Itemsets maximais:\n\n");
+
+    for (int i = 0; i < resultado->total_itemsets_frequentes; i++) {
+        ItemsetFrequente *itemset = &resultado->itemsets_frequentes[i];
+
+        if (!itemset_tem_superconjunto_frequente(resultado, itemset, 0)) {
+            escrever_itemset_formatado(saida, base, itemset);
+            total_maximais++;
+        }
+    }
+
+    fprintf(saida, "\nTotal de itemsets maximais: %d\n\n", total_maximais);
+}
+
+static int contar_itens_texto_regra(const char *texto) {
     int total = 0;
+    int dentro_de_item = 0;
 
-    for (int i = 0; i < base->total_itens; i++) {
-        int suporte = calcular_suporte_1_item(base, i);
-
-        if (suporte >= MIN_SUP) {
-            fprintf(saida, "{%s} -> suporte = %d\n", base->itens[i], suporte);
+    for (int i = 0; texto[i] != '\0'; i++) {
+        if (texto[i] == '{' || texto[i] == '}' || texto[i] == ',' || texto[i] == ' ') {
+            dentro_de_item = 0;
+        } else if (!dentro_de_item) {
             total++;
+            dentro_de_item = 1;
         }
     }
 
-    fprintf(saida, "\nTotal de itemsets frequentes de tamanho 1: %d\n\n", total);
+    return total;
 }
 
-static void escrever_itemsets_frequentes_2(
+static void escrever_maior_itemset_e_menor_regra(
     FILE *saida,
-    BaseCompras *base
+    BaseCompras *base,
+    ResultadoApriori *resultado
 ) {
-    fprintf(saida, "========================================\n");
-    fprintf(saida, " ITEMSETS FREQUENTES DE TAMANHO 2\n");
-    fprintf(saida, "========================================\n\n");
+    ItemsetFrequente *maior_itemset = NULL;
+    int total_maiores = 0;
 
-    fprintf(saida, "Aqui aparecem pares de itens que ocorreram juntos pelo menos %d vezes.\n\n", MIN_SUP);
+    for (int i = 0; i < resultado->total_itemsets_frequentes; i++) {
+        ItemsetFrequente *itemset = &resultado->itemsets_frequentes[i];
 
-    int total = 0;
-
-    for (int i = 0; i < base->total_itens; i++) {
-        for (int j = i + 1; j < base->total_itens; j++) {
-            int suporte = calcular_suporte_2_itens(base, i, j);
-
-            if (suporte >= MIN_SUP) {
-                fprintf(saida, "{%s, %s} -> suporte = %d\n",
-                        base->itens[i],
-                        base->itens[j],
-                        suporte);
-                total++;
-            }
+        if (maior_itemset == NULL || itemset->tamanho > maior_itemset->tamanho) {
+            maior_itemset = itemset;
+            total_maiores = 1;
+        } else if (itemset->tamanho == maior_itemset->tamanho) {
+            total_maiores++;
         }
     }
 
-    fprintf(saida, "\nTotal de itemsets frequentes de tamanho 2: %d\n\n", total);
-}
+    RegraAssociacao *menor_regra = NULL;
+    int tamanho_menor_regra = 0;
 
-static void escrever_itemsets_frequentes_3(
-    FILE *saida,
-    BaseCompras *base
-) {
-    fprintf(saida, "========================================\n");
-    fprintf(saida, " ITEMSETS FREQUENTES DE TAMANHO 3\n");
-    fprintf(saida, "========================================\n\n");
+    for (int i = 0; i < resultado->total_regras; i++) {
+        RegraAssociacao *regra = &resultado->regras[i];
+        int tamanho_regra =
+            contar_itens_texto_regra(regra->antecedente) +
+            contar_itens_texto_regra(regra->consequente);
 
-    fprintf(saida, "Aqui aparecem trios de itens que ocorreram juntos pelo menos %d vezes.\n\n", MIN_SUP);
-
-    int total = 0;
-
-    for (int i = 0; i < base->total_itens; i++) {
-        for (int j = i + 1; j < base->total_itens; j++) {
-            for (int k = j + 1; k < base->total_itens; k++) {
-                int suporte = calcular_suporte_3_itens(base, i, j, k);
-
-                if (suporte >= MIN_SUP) {
-                    fprintf(saida, "{%s, %s, %s} -> suporte = %d\n",
-                            base->itens[i],
-                            base->itens[j],
-                            base->itens[k],
-                            suporte);
-                    total++;
-                }
-            }
+        if (menor_regra == NULL || tamanho_regra < tamanho_menor_regra) {
+            menor_regra = regra;
+            tamanho_menor_regra = tamanho_regra;
         }
     }
 
-    fprintf(saida, "\nTotal de itemsets frequentes de tamanho 3: %d\n\n", total);
+    fprintf(saida, "========================================\n");
+    fprintf(saida, " MAIOR ITEMSET E MENOR REGRA VALIDA\n");
+    fprintf(saida, "========================================\n\n");
+
+    if (maior_itemset == NULL) {
+        fprintf(saida, "Nenhum itemset frequente foi encontrado.\n\n");
+    } else {
+        fprintf(saida, "Maior itemset frequente encontrado:\n");
+        escrever_itemset_formatado(saida, base, maior_itemset);
+        fprintf(saida, "Tamanho: %d itens\n", maior_itemset->tamanho);
+        fprintf(saida, "Quantidade de itemsets com esse mesmo tamanho: %d\n\n", total_maiores);
+    }
+
+    if (menor_regra == NULL) {
+        fprintf(saida, "Nenhuma regra valida foi encontrada.\n\n");
+    } else {
+        fprintf(saida, "Menor regra valida encontrada:\n");
+        fprintf(saida, "%s -> %s\n", menor_regra->antecedente, menor_regra->consequente);
+        fprintf(saida, "Tamanho: %d itens no total\n", tamanho_menor_regra);
+        fprintf(saida, "Suporte do conjunto: %d\n", menor_regra->suporte_conjunto);
+        fprintf(saida, "Confianca: %.2f%%\n\n", menor_regra->confianca * 100);
+    }
 }
 
 static void escrever_classificacao_confianca(
@@ -356,9 +538,17 @@ static void escrever_regras(
                 regra.consequente);
 
         fprintf(saida, "Dados usados no calculo:\n");
+        fprintf(saida, "- Itemset completo: %s\n", regra.itemset);
+        fprintf(saida, "- Consequente: %s\n", regra.consequente);
+        fprintf(saida, "- Frequencia do itemset completo: %d\n", regra.frequencia);
         fprintf(saida, "- Suporte do antecedente: %d\n", regra.suporte_antecedente);
         fprintf(saida, "- Suporte do conjunto completo: %d\n", regra.suporte_conjunto);
-        fprintf(saida, "- Confianca: %.2f%%\n\n", regra.confianca * 100);
+        fprintf(saida, "- Suporte relativo do conjunto completo: %.4f%%\n",
+                regra.suporte * 100);
+        fprintf(saida, "- Relevancia na base inteira: %.4f%%\n",
+                regra.relevancia * 100);
+        fprintf(saida, "- Confianca: %.2f%%\n", regra.confianca * 100);
+        fprintf(saida, "- Regra incerta: %s\n\n", regra.incerta ? "sim" : "nao");
 
         fprintf(saida, "Como a confianca foi calculada:\n");
         fprintf(saida, "Confianca = Suporte do conjunto completo / Suporte do antecedente\n");
@@ -368,6 +558,14 @@ static void escrever_regras(
         fprintf(saida, "Confianca = %.4f\n", regra.confianca);
         fprintf(saida, "Confianca em porcentagem = %.4f * 100\n", regra.confianca);
         fprintf(saida, "Confianca em porcentagem = %.2f%%\n\n", regra.confianca * 100);
+
+        fprintf(saida, "Como a relevancia foi calculada:\n");
+        fprintf(saida, "Relevancia = Suporte do conjunto completo / Total de transacoes\n");
+        fprintf(saida, "Relevancia = %d / %d\n",
+                regra.suporte_conjunto,
+                regra.total_transacoes);
+        fprintf(saida, "Relevancia = %.4f\n", regra.relevancia);
+        fprintf(saida, "Relevancia em porcentagem = %.4f%%\n\n", regra.relevancia * 100);
 
         fprintf(saida, "Interpretacao:\n");
         fprintf(saida, "Das %d compras que possuem %s, %d tambem possuem %s.\n",
@@ -385,6 +583,46 @@ static void escrever_regras(
 
         fprintf(saida, "\n");
     }
+}
+
+static void escrever_regras_incertas(
+    FILE *saida,
+    ResultadoApriori *resultado
+) {
+    fprintf(saida, "========================================\n");
+    fprintf(saida, " REGRAS INCERTAS - DADOS INSUFICIENTES\n");
+    fprintf(saida, "========================================\n\n");
+
+    fprintf(saida, "Esta secao lista regras cujo itemset completo apareceu em apenas uma compra.\n");
+    fprintf(saida, "Elas sao removidas das regras de associacao validas e nao entram no nivel\n");
+    fprintf(saida, "exibido por confianca, pois uma unica ocorrencia nao e suficiente para validar\n");
+    fprintf(saida, "um padrao de compra.\n\n");
+
+    if (resultado->total_regras_incertas == 0) {
+        fprintf(saida, "Nenhuma regra incerta foi encontrada.\n\n");
+        return;
+    }
+
+    for (int i = 0; i < resultado->total_regras_incertas; i++) {
+        RegraAssociacao regra = resultado->regras_incertas[i];
+
+        fprintf(saida, "Regra incerta %d: %s -> %s | Itemset completo: %s | ",
+                i + 1,
+                regra.antecedente,
+                regra.consequente,
+                regra.itemset);
+        fprintf(saida, "Suporte do conjunto: %d | Suporte relativo: %.4f%% | ",
+                regra.suporte_conjunto,
+                regra.suporte * 100);
+        fprintf(saida, "Frequencia: %d | Relevancia: %.4f%% | ",
+                regra.frequencia,
+                regra.relevancia * 100);
+        fprintf(saida, "Confianca calculada: %.2f%% | Flag incerta: %s\n",
+                regra.confianca * 100,
+                regra.incerta ? "sim" : "nao");
+    }
+
+    fprintf(saida, "\nTotal de regras incertas: %d\n\n", resultado->total_regras_incertas);
 }
 
 static void escrever_resumo_final(
@@ -412,6 +650,8 @@ static void escrever_resumo_final(
     fprintf(saida, "========================================\n\n");
 
     fprintf(saida, "Total de regras geradas: %d\n", resultado->total_regras);
+    fprintf(saida, "Total de regras incertas por dados insuficientes: %d\n",
+            resultado->total_regras_incertas);
     fprintf(saida, "Regras muito fortes, com confianca >= 90%%: %d\n", regras_muito_fortes);
     fprintf(saida, "Regras fortes, com confianca entre 70%% e 89.99%%: %d\n", regras_fortes);
     fprintf(saida, "Regras moderadas ou fracas, abaixo de 70%%: %d\n\n", regras_moderadas);
@@ -443,11 +683,12 @@ int gerar_arquivo_saida(
     escrever_amostra_compras(saida, base);
     escrever_itens_encontrados(saida, base);
 
-    escrever_itemsets_frequentes_1(saida, base);
-    escrever_itemsets_frequentes_2(saida, base);
-    escrever_itemsets_frequentes_3(saida, base);
+    escrever_itemsets_frequentes(saida, base, resultado);
+    escrever_itemsets_fechados_e_maximais(saida, base, resultado);
+    escrever_maior_itemset_e_menor_regra(saida, base, resultado);
 
     escrever_regras(saida, resultado);
+    escrever_regras_incertas(saida, resultado);
     escrever_resumo_final(saida, resultado);
 
     fclose(saida);
