@@ -75,7 +75,14 @@ static void adicionar_regra(
     int suporte_conjunto,
     float confianca
 ) {
+    static int aviso_limite_regras_validas_emitido = 0;
+
     if (resultado->total_regras >= MAX_REGRAS) {
+        if (!aviso_limite_regras_validas_emitido) {
+            printf("Aviso: limite maximo de regras validas atingido (%d).\n", MAX_REGRAS);
+            aviso_limite_regras_validas_emitido = 1;
+        }
+
         return;
     }
 
@@ -104,7 +111,15 @@ static void adicionar_regra_incerta(
     int suporte_conjunto,
     float confianca
 ) {
+    static int aviso_limite_regras_incertas_emitido = 0;
+
     if (resultado->total_regras_incertas >= MAX_REGRAS_INCERTAS) {
+        if (!aviso_limite_regras_incertas_emitido) {
+            printf("Aviso: limite maximo de regras incertas atingido (%d).\n",
+                   MAX_REGRAS_INCERTAS);
+            aviso_limite_regras_incertas_emitido = 1;
+        }
+
         return;
     }
 
