@@ -11,8 +11,8 @@ TEST_SRCS = tests/test_apriori.c leitor/leitor.c apriori/apriori.c apriori/metad
 
 .PHONY: all run test clean $(TARGET) $(TEST_TARGET)
 
-# Alvo padrao: compila o executavel.
-all: $(TARGET)
+# Alvo padrao: compila o executavel e roda os testes.
+all: $(TARGET) test
 
 $(TARGET): $(SRCS)
 	@rm -f $(TARGET)

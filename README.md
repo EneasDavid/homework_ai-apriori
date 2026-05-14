@@ -157,7 +157,7 @@ Principais alvos:
 
 | Comando | O que faz |
 |---|---|
-| `make` | Compila o projeto. |
+| `make` | Compila o projeto e executa os testes automaticos. |
 | `make run` | Compila, se necessario, e executa o programa. |
 | `make test` | Compila e executa os testes automaticos do Apriori. |
 | `make clean` | Remove os arquivos gerados. |
