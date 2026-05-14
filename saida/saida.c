@@ -19,11 +19,10 @@ typedef struct {
 } EstatisticasRegras;
 
 /*
- * Este modulo transforma os dados processados em um relatorio didatico.
+ * Este modulo transforma os dados processados em um relatorio objetivo.
+ * Conceitos didaticos e analise teorica ficam nos comentarios do codigo e no README.
  * Os calculos ficam no modulo apriori; aqui apenas escrevemos os resultados.
  */
-
-static void escrever_conceitos(FILE *saida);
 
 static void escrever_cabecalho_relatorio(
     FILE *saida,
@@ -39,47 +38,7 @@ static void escrever_cabecalho_relatorio(
     fprintf(saida, "Total de itens diferentes encontrados: %d\n", base->total_itens);
     fprintf(saida, "Suporte minimo configurado: %d\n", MIN_SUP);
     fprintf(saida, "Confianca minima configurada: %.2f%%\n\n", MIN_CONF * 100);
-
-    fprintf(saida, "Observacao sobre o tratamento dos dados:\n");
-    fprintf(saida, "- Todos os itens foram convertidos para letras minusculas.\n");
-    fprintf(saida, "- Assim, 'Leite', 'leite' e 'LEITE' sao tratados como o mesmo item.\n");
-    fprintf(saida, "- Cada linha do arquivo representa uma compra.\n");
-    fprintf(saida, "- Cada item dentro da compra e separado por virgula.\n\n");
 }
-
-static void imprimir_cabecalho_conceitos(
-    FILE *fp,
-    DadosGlobais info
-) {
-    BaseCompras base_resumo;
-
-    base_resumo.total_transacoes = info.total_compras;
-    base_resumo.total_itens = info.total_itens;
-
-    escrever_cabecalho_relatorio(fp, info.nome_arquivo_entrada, &base_resumo);
-    escrever_conceitos(fp);
-}
-
-static EstatisticasRegras contar_estatisticas_regras(
-    ResultadoApriori *resultado
-) {
-    EstatisticasRegras estatisticas = {0, 0, 0};
-
-    for (int i = 0; i < resultado->total_regras; i++) {
-        float confianca = resultado->regras[i].confianca;
-
-        if (confianca >= CONFIANCA_MUITO_FORTE) {
-            estatisticas.muito_fortes++;
-        } else if (confianca >= CONFIANCA_FORTE) {
-            estatisticas.fortes++;
-        } else {
-            estatisticas.moderadas_ou_fracas++;
-        }
-    }
-
-    return estatisticas;
-}
-
 static void escrever_conceitos(FILE *saida) {
     fprintf(saida, "========================================\n");
     fprintf(saida, " CONCEITOS IMPORTANTES\n");
@@ -181,6 +140,38 @@ static void escrever_conceitos(FILE *saida) {
     fprintf(saida, "Isso acontece porque, se {pao, manteiga} ja nao aparece vezes suficientes,\n");
     fprintf(saida, "{leite, pao, manteiga} tambem nao pode aparecer vezes suficientes.\n\n");
 }
+static void imprimir_cabecalho(
+    FILE *fp,
+    DadosGlobais info
+) {
+    BaseCompras base_resumo;
+
+    base_resumo.total_transacoes = info.total_compras;
+    base_resumo.total_itens = info.total_itens;
+
+    escrever_cabecalho_relatorio(fp, info.nome_arquivo_entrada, &base_resumo);
+    escrever_conceitos(fp);
+}
+
+static EstatisticasRegras contar_estatisticas_regras(
+    ResultadoApriori *resultado
+) {
+    EstatisticasRegras estatisticas = {0, 0, 0};
+
+    for (int i = 0; i < resultado->total_regras; i++) {
+        float confianca = resultado->regras[i].confianca;
+
+        if (confianca >= CONFIANCA_MUITO_FORTE) {
+            estatisticas.muito_fortes++;
+        } else if (confianca >= CONFIANCA_FORTE) {
+            estatisticas.fortes++;
+        } else {
+            estatisticas.moderadas_ou_fracas++;
+        }
+    }
+
+    return estatisticas;
+}
 
 static void escrever_regras_maior_nivel_confianca(
     FILE *saida,
@@ -191,10 +182,6 @@ static void escrever_regras_maior_nivel_confianca(
     fprintf(saida, "========================================\n");
     fprintf(saida, " REGRAS DESTACADAS PELO MAIOR NIVEL DE CONFIANCA\n");
     fprintf(saida, "========================================\n\n");
-
-    fprintf(saida, "Esta secao apresenta somente as regras do maior nivel de confianca encontrado.\n");
-    fprintf(saida, "Os calculos detalhados de suporte e confianca aparecem mais abaixo, na secao ");
-    fprintf(saida, "'REGRAS DE ASSOCIACAO GERADAS'.\n\n");
 
     fprintf(saida, "Quantidade encontrada em cada nivel:\n");
     fprintf(saida, "- Regras muito fortes, com confianca >= 90%%: %d\n",
@@ -207,8 +194,8 @@ static void escrever_regras_maior_nivel_confianca(
             resultado->total_regras_incertas);
 
     if (resultado->total_regras_incertas > 0) {
-        fprintf(saida, "Observacao: regras incertas nao entram no nivel exibido abaixo,\n");
-        fprintf(saida, "mesmo quando a confianca delas seria alta, porque possuem dados insuficientes.\n\n");
+        fprintf(saida, "Regras incertas removidas dos niveis de confianca: %d\n\n",
+                resultado->total_regras_incertas);
     }
 
     int nivel_escolhido;
@@ -267,8 +254,8 @@ static void escrever_amostra_compras(
     fprintf(saida, " AMOSTRA DAS COMPRAS LIDAS\n");
     fprintf(saida, "========================================\n\n");
 
-    fprintf(saida, "Para evitar um relatorio muito extenso, serao exibidas apenas as primeiras %d compras.\n", LIMITE_COMPRAS_EXIBIDAS);
-    fprintf(saida, "O total real de compras analisadas foi: %d.\n\n", base->total_transacoes);
+    fprintf(saida, "Compras exibidas: ate %d\n", LIMITE_COMPRAS_EXIBIDAS);
+    fprintf(saida, "Total de compras analisadas: %d\n\n", base->total_transacoes);
 
     int limite = base->total_transacoes;
 
@@ -289,7 +276,7 @@ static void escrever_amostra_compras(
     }
 
     if (base->total_transacoes > LIMITE_COMPRAS_EXIBIDAS) {
-        fprintf(saida, "\n... outras %d compras tambem foram analisadas.\n",
+        fprintf(saida, "\nCompras restantes nao exibidas: %d\n",
                 base->total_transacoes - LIMITE_COMPRAS_EXIBIDAS);
     }
 
@@ -304,7 +291,7 @@ static void escrever_itens_encontrados(
     fprintf(saida, " ITENS DIFERENTES ENCONTRADOS\n");
     fprintf(saida, "========================================\n\n");
 
-    fprintf(saida, "Foram encontrados %d itens diferentes na base de compras:\n\n", base->total_itens);
+    fprintf(saida, "Total de itens diferentes: %d\n\n", base->total_itens);
 
     for (int i = 0; i < base->total_itens; i++) {
         fprintf(saida, "- %s\n", base->itens[i]);
@@ -335,10 +322,6 @@ static void escrever_itemsets_frequentes(
     fprintf(saida, "========================================\n");
     fprintf(saida, " BUSCA LEVEL-WISE APRIORI\n");
     fprintf(saida, "========================================\n\n");
-
-    fprintf(saida, "O algoritmo gerou candidatos Ck a partir de Lk-1 usando join,\n");
-    fprintf(saida, "aplicou prune com a Apriori Property e manteve em Lk apenas candidatos\n");
-    fprintf(saida, "com suporte maior ou igual a %d.\n\n", MIN_SUP);
 
     for (int nivel = 1; nivel <= resultado->total_niveis; nivel++) {
         NivelApriori *nivel_atual = &resultado->niveis[nivel];
@@ -423,9 +406,6 @@ static void escrever_itemsets_fechados_e_maximais(
     fprintf(saida, "========================================\n");
     fprintf(saida, " ITEMSETS FECHADOS E MAXIMAIS\n");
     fprintf(saida, "========================================\n\n");
-
-    fprintf(saida, "Itemset fechado: nao possui superconjunto frequente com o mesmo suporte.\n");
-    fprintf(saida, "Itemset maximal: nao possui nenhum superconjunto frequente.\n\n");
 
     fprintf(saida, "Itemsets fechados:\n\n");
 
@@ -533,13 +513,10 @@ static void escrever_classificacao_confianca(
 ) {
     if (confianca >= CONFIANCA_MUITO_FORTE) {
         fprintf(saida, "Classificacao: regra muito forte.\n");
-        fprintf(saida, "Motivo: a confianca e maior ou igual a 90%%.\n");
     } else if (confianca >= CONFIANCA_FORTE) {
         fprintf(saida, "Classificacao: regra forte.\n");
-        fprintf(saida, "Motivo: a confianca e maior ou igual a 70%%.\n");
     } else {
         fprintf(saida, "Classificacao: regra moderada ou fraca.\n");
-        fprintf(saida, "Motivo: a confianca ficou abaixo de 70%%.\n");
     }
 }
 
@@ -556,12 +533,6 @@ static void escrever_regras(
         return;
     }
 
-    fprintf(saida, "Cada regra abaixo mostra uma relacao do tipo:\n");
-    fprintf(saida, "{antecedente} -> {consequente}\n\n");
-
-    fprintf(saida, "O calculo principal usado e:\n");
-    fprintf(saida, "Confianca = Suporte do conjunto completo / Suporte do antecedente\n\n");
-
     for (int i = 0; i < resultado->total_regras; i++) {
         RegraAssociacao regra = resultado->regras[i];
 
@@ -569,15 +540,7 @@ static void escrever_regras(
         fprintf(saida, "REGRA %d\n", i + 1);
         fprintf(saida, "----------------------------------------\n\n");
 
-        fprintf(saida, "Regra encontrada:\n");
-        fprintf(saida, "%s -> %s\n\n", regra.antecedente, regra.consequente);
-
-        fprintf(saida, "Leitura da regra:\n");
-        fprintf(saida, "Quando uma compra possui %s, existe uma tendencia de tambem possuir %s.\n\n",
-                regra.antecedente,
-                regra.consequente);
-
-        fprintf(saida, "Dados usados no calculo:\n");
+        fprintf(saida, "Regra: %s -> %s\n\n", regra.antecedente, regra.consequente);
         fprintf(saida, "- Itemset completo: %s\n", regra.itemset);
         fprintf(saida, "- Consequente: %s\n", regra.consequente);
         fprintf(saida, "- Frequencia do itemset completo: %d\n", regra.frequencia);
@@ -589,35 +552,6 @@ static void escrever_regras(
                 regra.relevancia * 100);
         fprintf(saida, "- Confianca: %.2f%%\n", regra.confianca * 100);
         fprintf(saida, "- Regra incerta: %s\n\n", regra.incerta ? "sim" : "nao");
-
-        fprintf(saida, "Como a confianca foi calculada:\n");
-        fprintf(saida, "Confianca = Suporte do conjunto completo / Suporte do antecedente\n");
-        fprintf(saida, "Confianca = %d / %d\n",
-                regra.suporte_conjunto,
-                regra.suporte_antecedente);
-        fprintf(saida, "Confianca = %.4f\n", regra.confianca);
-        fprintf(saida, "Confianca em porcentagem = %.4f * 100\n", regra.confianca);
-        fprintf(saida, "Confianca em porcentagem = %.2f%%\n\n", regra.confianca * 100);
-
-        fprintf(saida, "Como a relevancia foi calculada:\n");
-        fprintf(saida, "Relevancia = Suporte do conjunto completo / Total de transacoes\n");
-        fprintf(saida, "Relevancia = %d / %d\n",
-                regra.suporte_conjunto,
-                regra.total_transacoes);
-        fprintf(saida, "Relevancia = %.4f\n", regra.relevancia);
-        fprintf(saida, "Relevancia em porcentagem = %.4f%%\n\n", regra.relevancia * 100);
-
-        fprintf(saida, "Interpretacao:\n");
-        fprintf(saida, "Das %d compras que possuem %s, %d tambem possuem %s.\n",
-                regra.suporte_antecedente,
-                regra.antecedente,
-                regra.suporte_conjunto,
-                regra.consequente);
-
-        fprintf(saida, "Portanto, a regra %s -> %s possui %.2f%% de confianca.\n\n",
-                regra.antecedente,
-                regra.consequente,
-                regra.confianca * 100);
 
         escrever_classificacao_confianca(saida, regra.confianca);
 
@@ -632,11 +566,6 @@ static void escrever_regras_incertas(
     fprintf(saida, "========================================\n");
     fprintf(saida, " REGRAS INCERTAS - DADOS INSUFICIENTES\n");
     fprintf(saida, "========================================\n\n");
-
-    fprintf(saida, "Esta secao lista regras cujo itemset completo apareceu em apenas uma compra.\n");
-    fprintf(saida, "Elas sao removidas das regras de associacao validas e nao entram no nivel\n");
-    fprintf(saida, "exibido por confianca, pois uma unica ocorrencia nao e suficiente para validar\n");
-    fprintf(saida, "um padrao de compra.\n\n");
 
     if (resultado->total_regras_incertas == 0) {
         fprintf(saida, "Nenhuma regra incerta foi encontrada.\n\n");
@@ -682,13 +611,8 @@ static void escrever_resumo_final(
             estatisticas.muito_fortes);
     fprintf(saida, "Regras fortes, com confianca entre 70%% e 89.99%%: %d\n",
             estatisticas.fortes);
-    fprintf(saida, "Regras moderadas ou fracas, abaixo de 70%%: %d\n\n",
+    fprintf(saida, "Regras moderadas ou fracas, abaixo de 70%%: %d\n",
             estatisticas.moderadas_ou_fracas);
-
-    fprintf(saida, "Conclusao:\n");
-    fprintf(saida, "As regras de associacao ajudam a identificar padroes de compra.\n");
-    fprintf(saida, "Quanto maior a confianca, maior a chance de o consequente aparecer quando o antecedente aparece.\n");
-    fprintf(saida, "Essas informacoes podem ser usadas para organizar produtos, criar promocoes e entender habitos de consumo.\n");
 }
 
 int gerar_arquivo_saida(
@@ -710,7 +634,7 @@ int gerar_arquivo_saida(
         base->total_itens
     };
 
-    imprimir_cabecalho_conceitos(saida, info);
+    imprimir_cabecalho(saida, info);
 
     escrever_regras_maior_nivel_confianca(saida, resultado);
 

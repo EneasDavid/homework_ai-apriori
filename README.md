@@ -211,6 +211,73 @@ Processamento finalizado.
 
 ---
 
+## Complexidade
+
+Considere:
+
+- `T` = numero de transacoes;
+- `I` = numero de itens diferentes;
+- `R` = numero de regras geradas;
+- `K` = maior tamanho de itemset frequente encontrado.
+
+Como o Apriori faz uma busca level-wise, no pior caso ele pode avaliar candidatos de tamanho 1 ate `K`.
+Para um tamanho fixo `k`, a contagem de suporte pode custar aproximadamente:
+
+```txt
+O(C(I, k) * T * k)
+```
+
+Ignorando o fator `k` na leitura assintotica simplificada, a soma ate `K` fica:
+
+```txt
+O(T * (I + I^2 + ... + I^K))
+```
+
+Como o termo dominante e `I^K`, a forma simplificada e:
+
+```txt
+O(T * I^K)
+```
+
+Se a analise for limitada didaticamente ate itemsets de tamanho 3:
+
+```txt
+Suporte de 1 item: O(I * T)
+Suporte de 2 itens: O(I^2 * T)
+Suporte de 3 itens: O(I^3 * T)
+```
+
+Logo:
+
+```txt
+O(T * (I + I^2 + I^3)) = O(T * I^3)
+```
+
+Complexidade espacial aproximada:
+
+```txt
+Matriz de transacoes: O(T * I)
+Lista de itens: O(I)
+Lista de regras: O(R)
+```
+
+Logo:
+
+```txt
+O(T * I + R)
+```
+
+Para a base atual:
+
+```txt
+T = 700
+I = 35
+Pares possiveis: C(35, 2) = 595
+Trios possiveis: C(35, 3) = 6545
+```
+
+---
+
 ## Erros comuns
 
 ### Arquivo de entrada nao encontrado
