@@ -3,11 +3,27 @@
 #include "saida.h"
 
 #define LIMITE_COMPRAS_EXIBIDAS 20
+#define CONFIANCA_MUITO_FORTE 0.90
+#define CONFIANCA_FORTE 0.70
+
+typedef struct {
+    const char *nome_arquivo_entrada;
+    int total_compras;
+    int total_itens;
+} DadosGlobais;
+
+typedef struct {
+    int muito_fortes;
+    int fortes;
+    int moderadas_ou_fracas;
+} EstatisticasRegras;
 
 /*
  * Este modulo transforma os dados processados em um relatorio didatico.
  * Os calculos ficam no modulo apriori; aqui apenas escrevemos os resultados.
  */
+
+static void escrever_conceitos(FILE *saida);
 
 static void escrever_cabecalho_relatorio(
     FILE *saida,
@@ -29,6 +45,39 @@ static void escrever_cabecalho_relatorio(
     fprintf(saida, "- Assim, 'Leite', 'leite' e 'LEITE' sao tratados como o mesmo item.\n");
     fprintf(saida, "- Cada linha do arquivo representa uma compra.\n");
     fprintf(saida, "- Cada item dentro da compra e separado por virgula.\n\n");
+}
+
+static void imprimir_cabecalho_conceitos(
+    FILE *fp,
+    DadosGlobais info
+) {
+    BaseCompras base_resumo;
+
+    base_resumo.total_transacoes = info.total_compras;
+    base_resumo.total_itens = info.total_itens;
+
+    escrever_cabecalho_relatorio(fp, info.nome_arquivo_entrada, &base_resumo);
+    escrever_conceitos(fp);
+}
+
+static EstatisticasRegras contar_estatisticas_regras(
+    ResultadoApriori *resultado
+) {
+    EstatisticasRegras estatisticas = {0, 0, 0};
+
+    for (int i = 0; i < resultado->total_regras; i++) {
+        float confianca = resultado->regras[i].confianca;
+
+        if (confianca >= CONFIANCA_MUITO_FORTE) {
+            estatisticas.muito_fortes++;
+        } else if (confianca >= CONFIANCA_FORTE) {
+            estatisticas.fortes++;
+        } else {
+            estatisticas.moderadas_ou_fracas++;
+        }
+    }
+
+    return estatisticas;
 }
 
 static void escrever_conceitos(FILE *saida) {
@@ -137,21 +186,7 @@ static void escrever_regras_maior_nivel_confianca(
     FILE *saida,
     ResultadoApriori *resultado
 ) {
-    int regras_muito_fortes = 0;
-    int regras_fortes = 0;
-    int regras_moderadas = 0;
-
-    for (int i = 0; i < resultado->total_regras; i++) {
-        float confianca = resultado->regras[i].confianca;
-
-        if (confianca >= 0.90) {
-            regras_muito_fortes++;
-        } else if (confianca >= 0.70) {
-            regras_fortes++;
-        } else {
-            regras_moderadas++;
-        }
-    }
+    EstatisticasRegras estatisticas = contar_estatisticas_regras(resultado);
 
     fprintf(saida, "========================================\n");
     fprintf(saida, " REGRAS DESTACADAS PELO MAIOR NIVEL DE CONFIANCA\n");
@@ -162,9 +197,12 @@ static void escrever_regras_maior_nivel_confianca(
     fprintf(saida, "'REGRAS DE ASSOCIACAO GERADAS'.\n\n");
 
     fprintf(saida, "Quantidade encontrada em cada nivel:\n");
-    fprintf(saida, "- Regras muito fortes, com confianca >= 90%%: %d\n", regras_muito_fortes);
-    fprintf(saida, "- Regras fortes, com confianca entre 70%% e 89.99%%: %d\n", regras_fortes);
-    fprintf(saida, "- Regras moderadas ou fracas, abaixo de 70%%: %d\n", regras_moderadas);
+    fprintf(saida, "- Regras muito fortes, com confianca >= 90%%: %d\n",
+            estatisticas.muito_fortes);
+    fprintf(saida, "- Regras fortes, com confianca entre 70%% e 89.99%%: %d\n",
+            estatisticas.fortes);
+    fprintf(saida, "- Regras moderadas ou fracas, abaixo de 70%%: %d\n",
+            estatisticas.moderadas_ou_fracas);
     fprintf(saida, "- Regras incertas, com suporte do conjunto igual a 1: %d\n\n",
             resultado->total_regras_incertas);
 
@@ -175,10 +213,10 @@ static void escrever_regras_maior_nivel_confianca(
 
     int nivel_escolhido;
 
-    if (regras_muito_fortes > 0) {
+    if (estatisticas.muito_fortes > 0) {
         nivel_escolhido = 1;
         fprintf(saida, "Nivel exibido nesta secao: REGRAS MUITO FORTES\n\n");
-    } else if (regras_fortes > 0) {
+    } else if (estatisticas.fortes > 0) {
         nivel_escolhido = 2;
         fprintf(saida, "Nivel exibido nesta secao: REGRAS FORTES\n\n");
     } else {
@@ -194,20 +232,22 @@ static void escrever_regras_maior_nivel_confianca(
 
         int deve_exibir = 0;
 
-        if (nivel_escolhido == 1 && confianca >= 0.90) {
+        if (nivel_escolhido == 1 && confianca >= CONFIANCA_MUITO_FORTE) {
             deve_exibir = 1;
-        } else if (nivel_escolhido == 2 && confianca >= 0.70 && confianca < 0.90) {
+        } else if (nivel_escolhido == 2 &&
+                   confianca >= CONFIANCA_FORTE &&
+                   confianca < CONFIANCA_MUITO_FORTE) {
             deve_exibir = 1;
-        } else if (nivel_escolhido == 3 && confianca < 0.70) {
+        } else if (nivel_escolhido == 3 && confianca < CONFIANCA_FORTE) {
             deve_exibir = 1;
         }
 
         if (deve_exibir) {
-        fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
-                contador,
-                regra.antecedente,
-                regra.consequente,
-                regra.confianca * 100);
+            fprintf(saida, "Regra destacada %d: %s -> %s | Confianca: %.2f%%\n",
+                    contador,
+                    regra.antecedente,
+                    regra.consequente,
+                    regra.confianca * 100);
             fprintf(saida, "  Itemset completo: %s | Frequencia: %d | Relevancia na base: %.4f%%\n",
                     regra.itemset,
                     regra.frequencia,
@@ -491,10 +531,10 @@ static void escrever_classificacao_confianca(
     FILE *saida,
     float confianca
 ) {
-    if (confianca >= 0.90) {
+    if (confianca >= CONFIANCA_MUITO_FORTE) {
         fprintf(saida, "Classificacao: regra muito forte.\n");
         fprintf(saida, "Motivo: a confianca e maior ou igual a 90%%.\n");
-    } else if (confianca >= 0.70) {
+    } else if (confianca >= CONFIANCA_FORTE) {
         fprintf(saida, "Classificacao: regra forte.\n");
         fprintf(saida, "Motivo: a confianca e maior ou igual a 70%%.\n");
     } else {
@@ -629,21 +669,7 @@ static void escrever_resumo_final(
     FILE *saida,
     ResultadoApriori *resultado
 ) {
-    int regras_muito_fortes = 0;
-    int regras_fortes = 0;
-    int regras_moderadas = 0;
-
-    for (int i = 0; i < resultado->total_regras; i++) {
-        float confianca = resultado->regras[i].confianca;
-
-        if (confianca >= 0.90) {
-            regras_muito_fortes++;
-        } else if (confianca >= 0.70) {
-            regras_fortes++;
-        } else {
-            regras_moderadas++;
-        }
-    }
+    EstatisticasRegras estatisticas = contar_estatisticas_regras(resultado);
 
     fprintf(saida, "========================================\n");
     fprintf(saida, " RESUMO FINAL\n");
@@ -652,9 +678,12 @@ static void escrever_resumo_final(
     fprintf(saida, "Total de regras geradas: %d\n", resultado->total_regras);
     fprintf(saida, "Total de regras incertas por dados insuficientes: %d\n",
             resultado->total_regras_incertas);
-    fprintf(saida, "Regras muito fortes, com confianca >= 90%%: %d\n", regras_muito_fortes);
-    fprintf(saida, "Regras fortes, com confianca entre 70%% e 89.99%%: %d\n", regras_fortes);
-    fprintf(saida, "Regras moderadas ou fracas, abaixo de 70%%: %d\n\n", regras_moderadas);
+    fprintf(saida, "Regras muito fortes, com confianca >= 90%%: %d\n",
+            estatisticas.muito_fortes);
+    fprintf(saida, "Regras fortes, com confianca entre 70%% e 89.99%%: %d\n",
+            estatisticas.fortes);
+    fprintf(saida, "Regras moderadas ou fracas, abaixo de 70%%: %d\n\n",
+            estatisticas.moderadas_ou_fracas);
 
     fprintf(saida, "Conclusao:\n");
     fprintf(saida, "As regras de associacao ajudam a identificar padroes de compra.\n");
@@ -675,8 +704,13 @@ int gerar_arquivo_saida(
         return 0;
     }
 
-    escrever_cabecalho_relatorio(saida, nome_arquivo_entrada, base);
-    escrever_conceitos(saida);
+    DadosGlobais info = {
+        nome_arquivo_entrada,
+        base->total_transacoes,
+        base->total_itens
+    };
+
+    imprimir_cabecalho_conceitos(saida, info);
 
     escrever_regras_maior_nivel_confianca(saida, resultado);
 
