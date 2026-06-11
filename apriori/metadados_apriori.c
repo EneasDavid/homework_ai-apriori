@@ -47,8 +47,10 @@ static void preencher_regra(
     const char *antecedente,
     const char *consequente,
     int suporte_antecedente,
+    int suporte_consequente,
     int suporte_conjunto,
     float confianca,
+    float lift,
     int incerta
 ) {
     strcpy(regra->itemset, itemset);
@@ -56,11 +58,13 @@ static void preencher_regra(
     strcpy(regra->consequente, consequente);
 
     regra->suporte_antecedente = suporte_antecedente;
+    regra->suporte_consequente = suporte_consequente;
     regra->suporte_conjunto = suporte_conjunto;
     regra->frequencia = suporte_conjunto;
     regra->total_transacoes = base->total_transacoes;
     regra->suporte = calcular_relevancia(base, suporte_conjunto);
     regra->confianca = confianca;
+    regra->lift = lift;
     regra->relevancia = regra->suporte;
     regra->incerta = incerta;
 }
@@ -72,8 +76,10 @@ static void adicionar_regra(
     const char *antecedente,
     const char *consequente,
     int suporte_antecedente,
+    int suporte_consequente,
     int suporte_conjunto,
-    float confianca
+    float confianca,
+    float lift
 ) {
     static int aviso_limite_regras_validas_emitido = 0;
 
@@ -93,8 +99,10 @@ static void adicionar_regra(
         antecedente,
         consequente,
         suporte_antecedente,
+        suporte_consequente,
         suporte_conjunto,
         confianca,
+        lift,
         0
     );
 
@@ -108,8 +116,10 @@ static void adicionar_regra_incerta(
     const char *antecedente,
     const char *consequente,
     int suporte_antecedente,
+    int suporte_consequente,
     int suporte_conjunto,
-    float confianca
+    float confianca,
+    float lift
 ) {
     static int aviso_limite_regras_incertas_emitido = 0;
 
@@ -130,8 +140,10 @@ static void adicionar_regra_incerta(
         antecedente,
         consequente,
         suporte_antecedente,
+        suporte_consequente,
         suporte_conjunto,
         confianca,
+        lift,
         1
     );
 
@@ -179,8 +191,15 @@ static void gerar_metadados_itemset(
         }
 
         float confianca = (float) itemset->suporte / suporte_antecedente;
+        int suporte_consequente =
+            calcular_suporte_itemset(base, consequente, total_consequente);
+        float suporte_relativo_consequente =
+            (float) suporte_consequente / base->total_transacoes;
+        float lift = suporte_relativo_consequente > 0
+            ? confianca / suporte_relativo_consequente
+            : 0.0f;
 
-        if (!incerta && confianca < MIN_CONF) {
+        if (!incerta && confianca < resultado->confianca_minima) {
             continue;
         }
 
@@ -218,8 +237,10 @@ static void gerar_metadados_itemset(
                 texto_antecedente,
                 texto_consequente,
                 suporte_antecedente,
+                suporte_consequente,
                 itemset->suporte,
-                confianca
+                confianca,
+                lift
             );
         } else {
             adicionar_regra(
@@ -229,8 +250,10 @@ static void gerar_metadados_itemset(
                 texto_antecedente,
                 texto_consequente,
                 suporte_antecedente,
+                suporte_consequente,
                 itemset->suporte,
-                confianca
+                confianca,
+                lift
             );
         }
     }

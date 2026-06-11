@@ -1,0 +1,6 @@
+leite,pao
+leite,pao
+leite,pao
+leite,manteiga
+leite,manteiga
+pao,manteiga

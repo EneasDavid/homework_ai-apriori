@@ -9,31 +9,58 @@ typedef struct {
     int suporte;
 } CandidatoApriori;
 
+static int adicionar_itemset_em_lista(
+    ItemsetFrequente itemsets[],
+    int *total_itemsets,
+    int max_itemsets,
+    const char *nome_lista,
+    const int itens[],
+    int tamanho,
+    int suporte
+);
+
 void inicializar_resultado(ResultadoApriori *resultado) {
+    resultado->suporte_minimo = SUPORTE_MINIMO_PADRAO;
+    resultado->confianca_minima = CONFIANCA_MINIMA_PADRAO;
     resultado->total_regras = 0;
     resultado->total_regras_incertas = 0;
     resultado->total_itemsets_frequentes = 0;
     resultado->total_itemsets_incertos = 0;
+    resultado->total_candidatos_infrequentes = 0;
+    resultado->total_candidatos_podados = 0;
     resultado->total_niveis = 0;
 
     for (int i = 0; i <= MAX_ITENS; i++) {
         resultado->niveis[i].tamanho = 0;
         resultado->niveis[i].inicio = 0;
         resultado->niveis[i].total = 0;
+        resultado->niveis[i].total_candidatos_gerados = 0;
+        resultado->niveis[i].total_candidatos_podados = 0;
         resultado->niveis[i].total_candidatos = 0;
+        resultado->niveis[i].total_descartados_suporte = 0;
     }
 }
 
-static int validar_configuracao_apriori(
-    BaseCompras *base
+void configurar_parametros_apriori(
+    ResultadoApriori *resultado,
+    int suporte_minimo,
+    float confianca_minima
 ) {
-    if (MIN_SUP <= 0) {
-        printf("Erro: MIN_SUP deve ser maior que zero.\n");
+    resultado->suporte_minimo = suporte_minimo;
+    resultado->confianca_minima = confianca_minima;
+}
+
+static int validar_configuracao_apriori(
+    BaseCompras *base,
+    ResultadoApriori *resultado
+) {
+    if (resultado->suporte_minimo <= 0) {
+        printf("Erro: o suporte minimo deve ser maior que zero.\n");
         return 0;
     }
 
-    if (MIN_CONF < 0 || MIN_CONF > 1) {
-        printf("Erro: MIN_CONF deve estar entre 0 e 1.\n");
+    if (resultado->confianca_minima < 0 || resultado->confianca_minima > 1) {
+        printf("Erro: a confianca minima deve estar entre 0 e 1.\n");
         return 0;
     }
 
@@ -224,10 +251,15 @@ static int gerar_candidatos_com_join_e_prune(
     ResultadoApriori *resultado,
     NivelApriori *nivel_anterior,
     CandidatoApriori candidatos[],
-    int max_candidatos
+    int max_candidatos,
+    int *total_gerados,
+    int *total_podados
 ) {
     int total_candidatos = 0;
     int tamanho_novo = nivel_anterior->tamanho + 1;
+
+    *total_gerados = 0;
+    *total_podados = 0;
 
     for (int i = 0; i < nivel_anterior->total; i++) {
         ItemsetFrequente *a = &resultado->itemsets_frequentes[nivel_anterior->inicio + i];
@@ -241,8 +273,19 @@ static int gerar_candidatos_com_join_e_prune(
 
             int candidato[MAX_ITENS];
             fazer_join(a, b, candidato);
+            (*total_gerados)++;
 
             if (!candidato_passa_no_prune(resultado, nivel_anterior, candidato, tamanho_novo)) {
+                adicionar_itemset_em_lista(
+                    resultado->candidatos_podados,
+                    &resultado->total_candidatos_podados,
+                    MAX_CANDIDATOS_REGISTRADOS,
+                    "podados",
+                    candidato,
+                    tamanho_novo,
+                    -1
+                );
+                (*total_podados)++;
                 continue;
             }
 
@@ -317,10 +360,29 @@ static int adicionar_itemset_incerto(
     );
 }
 
+static int adicionar_candidato_infrequente(
+    ResultadoApriori *resultado,
+    const int itens[],
+    int tamanho,
+    int suporte
+) {
+    return adicionar_itemset_em_lista(
+        resultado->candidatos_infrequentes,
+        &resultado->total_candidatos_infrequentes,
+        MAX_CANDIDATOS_REGISTRADOS,
+        "infrequentes",
+        itens,
+        tamanho,
+        suporte
+    );
+}
+
 static NivelApriori *criar_nivel(
     ResultadoApriori *resultado,
     int tamanho,
-    int total_candidatos
+    int total_candidatos_gerados,
+    int total_candidatos_podados,
+    int total_candidatos_avaliados
 ) {
     if (tamanho > MAX_ITENS) {
         return NULL;
@@ -330,7 +392,10 @@ static NivelApriori *criar_nivel(
     nivel->tamanho = tamanho;
     nivel->inicio = resultado->total_itemsets_frequentes;
     nivel->total = 0;
-    nivel->total_candidatos = total_candidatos;
+    nivel->total_candidatos_gerados = total_candidatos_gerados;
+    nivel->total_candidatos_podados = total_candidatos_podados;
+    nivel->total_candidatos = total_candidatos_avaliados;
+    nivel->total_descartados_suporte = 0;
 
     if (tamanho > resultado->total_niveis) {
         resultado->total_niveis = tamanho;
@@ -343,16 +408,25 @@ static void gerar_l1(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
-    NivelApriori *l1 = criar_nivel(resultado, 1, base->total_itens);
+    NivelApriori *l1 = criar_nivel(
+        resultado,
+        1,
+        base->total_itens,
+        0,
+        base->total_itens
+    );
 
     for (int item = 0; item < base->total_itens; item++) {
         int itens[] = {item};
         int suporte = calcular_suporte_itemset(base, itens, 1);
 
-        if (suporte >= MIN_SUP) {
+        if (suporte >= resultado->suporte_minimo) {
             if (adicionar_itemset_frequente(resultado, itens, 1, suporte)) {
                 l1->total++;
             }
+        } else {
+            adicionar_candidato_infrequente(resultado, itens, 1, suporte);
+            l1->total_descartados_suporte++;
         }
     }
 }
@@ -363,7 +437,7 @@ static void classificar_candidato_por_suporte(
     CandidatoApriori *candidato,
     int suporte
 ) {
-    if (suporte >= MIN_SUP) {
+    if (suporte >= resultado->suporte_minimo) {
         if (adicionar_itemset_frequente(
                 resultado,
                 candidato->itens,
@@ -374,6 +448,14 @@ static void classificar_candidato_por_suporte(
 
         return;
     }
+
+    adicionar_candidato_infrequente(
+        resultado,
+        candidato->itens,
+        candidato->tamanho,
+        suporte
+    );
+    nivel_atual->total_descartados_suporte++;
 
     if (suporte == 1) {
         adicionar_itemset_incerto(
@@ -419,20 +501,34 @@ static int executar_nivel_k(
         return 0;
     }
 
+    int total_gerados;
+    int total_podados;
     int total_candidatos =
         gerar_candidatos_com_join_e_prune(
             resultado,
             nivel_anterior,
             candidatos,
-            MAX_ITEMSETS_FREQUENTES
+            MAX_ITEMSETS_FREQUENTES,
+            &total_gerados,
+            &total_podados
         );
 
     if (total_candidatos == 0) {
+        if (total_gerados > 0) {
+            criar_nivel(resultado, k, total_gerados, total_podados, 0);
+        }
+
         free(candidatos);
         return 0;
     }
 
-    NivelApriori *nivel_atual = criar_nivel(resultado, k, total_candidatos);
+    NivelApriori *nivel_atual = criar_nivel(
+        resultado,
+        k,
+        total_gerados,
+        total_podados,
+        total_candidatos
+    );
 
     contar_suporte_e_formar_lk(
         base,
@@ -490,7 +586,7 @@ int aplicar_apriori(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
-    if (!validar_configuracao_apriori(base)) {
+    if (!validar_configuracao_apriori(base, resultado)) {
         return 0;
     }
 

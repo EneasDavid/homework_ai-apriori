@@ -28,7 +28,7 @@ make run
 Quando o programa pedir o arquivo de entrada, digite:
 
 ```txt
-compras.txt
+exemplo_aula.txt
 ```
 
 O relatorio sera gerado em:
@@ -59,7 +59,8 @@ Esse comando remove:
 APRIORI/
 ├── main.c
 ├── Makefile
-├── compras.txt
+├── exemplo_aula.txt
+├── test_estresse.txt
 ├── regras_associacao.txt
 ├── leitor/
 │   ├── leitor.c
@@ -82,7 +83,7 @@ APRIORI/
 | `leitor/leitor.c` | Deve ler o arquivo de compras, normalizar itens e preencher a base em memoria. |
 | `apriori/apriori.h` | Deve declarar as estruturas, constantes e funcoes publicas do modulo Apriori. |
 | `apriori/apriori.c` | Deve conter somente o algoritmo Apriori: suporte, join, prune, busca level-wise e itemsets encontrados. |
-| `apriori/metadados_apriori.c` | Deve transformar os itemsets do Apriori em metadados prontos para a saida, como regras, confianca, relevancia e flag incerta. |
+| `apriori/metadados_apriori.c` | Deve transformar os itemsets do Apriori em metadados prontos para a saida, como regras, confianca, lift e flag incerta. |
 | `saida/saida.h` | Deve declarar a funcao publica que gera o relatorio. |
 | `saida/saida.c` | Deve apenas organizar e escrever o relatorio usando os dados ja calculados. |
 | `Makefile` | Deve compilar, executar e limpar os arquivos gerados do projeto. |
@@ -91,7 +92,7 @@ APRIORI/
 ## Fluxo da aplicacao
 
 ```txt
-compras.txt
+exemplo_aula.txt
    ↓
 leitor
    ↓
@@ -111,7 +112,7 @@ O `main.c` apenas conecta essas etapas. A regra do projeto e manter cada respons
 Resumo importante:
 
 - `apriori.c` nao deve formatar texto do relatorio.
-- `saida.c` nao deve calcular Apriori, confianca ou relevancia.
+- `saida.c` nao deve calcular Apriori, confianca ou lift.
 - `metadados_apriori.c` deve ser a ponte entre o algoritmo e a saida.
 
 ---
@@ -133,7 +134,42 @@ Recomendacoes:
 - use nomes sem acento;
 - use `_` em nomes compostos, como `molho_de_tomate`;
 - mantenha o arquivo na raiz do projeto;
-- use `compras.txt` quando o programa pedir o nome do arquivo.
+- use `exemplo_aula.txt` para uma demonstracao curta;
+- use `test_estresse.txt` para uma base maior.
+
+## Exemplo curto para aula
+
+O arquivo `exemplo_aula.txt` possui apenas seis transacoes:
+
+```txt
+leite,pao
+leite,pao
+leite,pao
+leite,manteiga
+leite,manteiga
+pao,manteiga
+```
+
+Ele foi montado para demonstrar:
+
+- diferenca entre frequencia absoluta e suporte relativo;
+- fluxo `C1 -> L1`, `C2 -> L2` e `C3 -> L3`;
+- `{leite, pao}` frequente, com 3 ocorrencias;
+- `{leite, manteiga}` frequente, com 2 ocorrencias;
+- `{pao, manteiga}` infrequente, com apenas 1 ocorrencia;
+- join que gera `{leite, pao, manteiga}` e poda o trio antes da contagem;
+- itemset raro que aparece apenas uma vez.
+
+Ao executar o programa, o usuario informa os dois parametros:
+
+```txt
+Suporte minimo em ocorrencias (exemplo: 2)
+Confianca minima em percentual (exemplo: 70)
+```
+
+Os exemplos sugeridos sao suporte `2` e confianca `70%`. Em
+`exemplo_aula.txt`, suporte minimo `2` equivale a `2/6 = 33.33%`. Como o
+programa recebe suporte minimo absoluto, esse percentual muda quando a base muda.
 
 ---
 
@@ -173,16 +209,29 @@ Exemplo:
  ALGORITMO APRIORI - VERSAO MODULAR
 ========================================
 
-Digite o nome do arquivo de compras: compras.txt
+Digite o nome do arquivo de compras: exemplo_aula.txt
 
 [1/3] Lendo arquivo de compras...
 Arquivo lido com sucesso.
-Total de compras: 700
-Total de itens diferentes: 35
+Total de compras: 6
+Total de itens diferentes: 3
+
+Configure os criterios do Apriori:
+
+Suporte minimo e a quantidade minima de compras em que um itemset
+deve aparecer para ser considerado frequente.
+Digite o suporte minimo em ocorrencias (exemplo: 2): 2
+
+Confianca minima e o percentual minimo para aceitar uma regra
+de associacao, como {pao} -> {leite}.
+Digite a confianca minima entre 0 e 100 (exemplo: 70): 70
+
+Suporte minimo: 2 ocorrencias (33.33% nesta base)
+Confianca minima: 70.00%
 
 [2/3] Aplicando algoritmo Apriori...
 Apriori executado com sucesso.
-Total de regras encontradas: 216
+Total de regras encontradas: 1
 
 [3/3] Gerando arquivo de saida...
 Arquivo de saida gerado com sucesso: regras_associacao.txt
@@ -197,15 +246,14 @@ Processamento finalizado.
 | Tema | Onde olhar |
 |---|---|
 | Organizacao do fluxo | `main.c` |
-| Leitura de arquivo, `strtok`, normalizacao de texto | `leitor/leitor.c` |
+| Leitura de arquivo e normalizacao de texto | `leitor/leitor.c` |
 | Matriz de transacoes e limites da base | `leitor/leitor.h` |
 | Busca level-wise L1, L2, ..., Lk | `apriori/apriori.c` |
-| Join, prune e `has_infrequent_subset` | `apriori/apriori.c` |
+| Join, prune e candidatos descartados | `apriori/apriori.c` |
 | Suporte dos itemsets | `apriori/apriori.c` |
-| Confianca e regras de associacao | `apriori/metadados_apriori.c` |
-| Relevancia da regra na base inteira | `apriori/metadados_apriori.c` |
+| Confianca, lift e regras de associacao | `apriori/metadados_apriori.c` |
 | Regras incertas com suporte igual a 1 | `apriori/apriori.c`, `apriori/metadados_apriori.c` e `saida/saida.c` |
-| Parametros `MIN_SUP`, `MIN_CONF` e estruturas de regra | `apriori/apriori.h` |
+| Parametros de suporte e confianca e estruturas de regra | `apriori/apriori.h` |
 | Escrita de arquivo com `fprintf` | `saida/saida.c` |
 | Compilacao com `make` | `Makefile` |
 
@@ -267,7 +315,7 @@ Logo:
 O(T * I + R)
 ```
 
-Para a base atual:
+Para a base maior de `test_estresse.txt`:
 
 ```txt
 T = 700
@@ -282,7 +330,7 @@ Trios possiveis: C(35, 3) = 6545
 
 ### Arquivo de entrada nao encontrado
 
-Verifique se `compras.txt` esta na raiz do projeto.
+Verifique se `exemplo_aula.txt` ou o arquivo escolhido esta na raiz do projeto.
 
 ### Arquivo sem dados validos
 

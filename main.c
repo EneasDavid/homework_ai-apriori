@@ -4,6 +4,45 @@
 #include "apriori/apriori.h"
 #include "saida/saida.h"
 
+static int ler_parametros_apriori(
+    BaseCompras *base,
+    ResultadoApriori *resultado
+) {
+    int suporte_minimo;
+    float confianca_percentual;
+
+    printf("\nConfigure os criterios do Apriori:\n\n");
+    printf("Suporte minimo e a quantidade minima de compras em que um itemset\n");
+    printf("deve aparecer para ser considerado frequente.\n");
+    printf("Digite o suporte minimo em ocorrencias (exemplo: 2): ");
+
+    if (scanf("%d", &suporte_minimo) != 1 ||
+        suporte_minimo <= 0 ||
+        suporte_minimo > base->total_transacoes) {
+        printf("Erro: informe um suporte entre 1 e %d.\n", base->total_transacoes);
+        return 0;
+    }
+
+    printf("\nConfianca minima e o percentual minimo para aceitar uma regra\n");
+    printf("de associacao, como {pao} -> {leite}.\n");
+    printf("Digite a confianca minima entre 0 e 100 (exemplo: 70): ");
+
+    if (scanf("%f", &confianca_percentual) != 1 ||
+        confianca_percentual < 0 ||
+        confianca_percentual > 100) {
+        printf("Erro: informe uma confianca entre 0 e 100.\n");
+        return 0;
+    }
+
+    configurar_parametros_apriori(
+        resultado,
+        suporte_minimo,
+        confianca_percentual / 100.0f
+    );
+
+    return 1;
+}
+
 int main() {
     /*
      * O main organiza o fluxo geral.
@@ -35,6 +74,15 @@ int main() {
     printf("Arquivo lido com sucesso.\n");
     printf("Total de compras: %d\n", base.total_transacoes);
     printf("Total de itens diferentes: %d\n", base.total_itens);
+
+    if (!ler_parametros_apriori(&base, &resultado)) {
+        return 1;
+    }
+
+    printf("Suporte minimo: %d ocorrencias (%.2f%% nesta base)\n",
+           resultado.suporte_minimo,
+           100.0f * resultado.suporte_minimo / base.total_transacoes);
+    printf("Confianca minima: %.2f%%\n", resultado.confianca_minima * 100);
 
     printf("\n[2/3] Aplicando algoritmo Apriori...\n");
 

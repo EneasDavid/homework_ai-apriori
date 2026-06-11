@@ -7,12 +7,11 @@
 #define MAX_REGRAS_INCERTAS 50000
 #define MAX_ITEMSETS_FREQUENTES 50000
 #define MAX_ITEMSETS_INCERTOS 50000
+#define MAX_CANDIDATOS_REGISTRADOS 50000
 
-/* Suporte minimo: quantidade minima de compras em que um itemset deve aparecer. */
-#define MIN_SUP 2
-
-/* Confianca minima: percentual minimo para aceitar uma regra de associacao. */
-#define MIN_CONF 0.70
+/* Valores padrao usados quando nenhuma configuracao diferente e informada. */
+#define SUPORTE_MINIMO_PADRAO 2
+#define CONFIANCA_MINIMA_PADRAO 0.70
 
 typedef struct {
     /*
@@ -26,14 +25,16 @@ typedef struct {
     char consequente[500];
     char itemset[1000];
 
-    /* Dados usados para calcular confianca = suporte_conjunto / suporte_antecedente. */
+    /* Dados usados para explicar os calculos de suporte, confianca e lift. */
     int suporte_antecedente;
+    int suporte_consequente;
     int suporte_conjunto;
     int frequencia;
     int total_transacoes;
 
     float suporte;
     float confianca;
+    float lift;
     float relevancia;
     int incerta;
 } RegraAssociacao;
@@ -48,10 +49,17 @@ typedef struct {
     int tamanho;
     int inicio;
     int total;
+    int total_candidatos_gerados;
+    int total_candidatos_podados;
     int total_candidatos;
+    int total_descartados_suporte;
 } NivelApriori;
 
 typedef struct {
+    /* Parametros escolhidos para esta execucao do algoritmo. */
+    int suporte_minimo;
+    float confianca_minima;
+
     RegraAssociacao regras[MAX_REGRAS];
     int total_regras;
 
@@ -71,11 +79,27 @@ typedef struct {
     int total_itemsets_frequentes;
     ItemsetFrequente itemsets_incertos[MAX_ITEMSETS_INCERTOS];
     int total_itemsets_incertos;
+
+    /*
+     * Estes registros permitem que a saida mostre o que foi descartado
+     * por suporte e o que foi podado antes mesmo da contagem.
+     */
+    ItemsetFrequente candidatos_infrequentes[MAX_CANDIDATOS_REGISTRADOS];
+    int total_candidatos_infrequentes;
+    ItemsetFrequente candidatos_podados[MAX_CANDIDATOS_REGISTRADOS];
+    int total_candidatos_podados;
+
     NivelApriori niveis[MAX_ITENS + 1];
     int total_niveis;
 } ResultadoApriori;
 
 void inicializar_resultado(ResultadoApriori *resultado);
+
+void configurar_parametros_apriori(
+    ResultadoApriori *resultado,
+    int suporte_minimo,
+    float confianca_minima
+);
 
 int calcular_suporte_itemset(
     BaseCompras *base,
