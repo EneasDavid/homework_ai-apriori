@@ -3,6 +3,7 @@
 
 #include "leitor.h"
 #include "apriori.h"
+#include "saida.h"
 
 static int falhas = 0;
 
@@ -214,11 +215,61 @@ static void testar_base_invalida(void) {
               "Apriori deve rejeitar base sem transacoes e sem itens.");
 }
 
+static int arquivo_contem(const char *nome_arquivo, const char *trecho) {
+    FILE *arquivo = fopen(nome_arquivo, "r");
+
+    if (arquivo == NULL) {
+        return 0;
+    }
+
+    char linha[1000];
+
+    while (fgets(linha, sizeof(linha), arquivo) != NULL) {
+        if (strstr(linha, trecho) != NULL) {
+            fclose(arquivo);
+            return 1;
+        }
+    }
+
+    fclose(arquivo);
+    return 0;
+}
+
+static void testar_relatorio_markdown(void) {
+    const char *nome_relatorio = "tests/relatorio_teste.md";
+    static BaseCompras base;
+    static ResultadoApriori resultado;
+
+    montar_base_basica(&base);
+    inicializar_resultado(&resultado);
+    aplicar_apriori(&base, &resultado);
+
+    VERIFICAR(
+        gerar_arquivo_saida(nome_relatorio, "base_teste.txt", &base, &resultado) == 1,
+        "O relatorio Markdown deve ser gerado."
+    );
+    VERIFICAR(
+        arquivo_contem(nome_relatorio, "# Relatorio didatico do algoritmo Apriori"),
+        "O relatorio deve possuir um titulo Markdown."
+    );
+    VERIFICAR(
+        arquivo_contem(nome_relatorio, "| Metrica | Total |"),
+        "O relatorio deve possuir a tabela de destaques."
+    );
+    VERIFICAR(
+        arquivo_contem(nome_relatorio, "### Regra 1:"),
+        "Cada regra deve possuir uma subsecao Markdown."
+    );
+
+    remove(nome_relatorio);
+}
+
 int main(void) {
     testar_operacao_basica_apriori();
     testar_exemplo_didatico();
     testar_parametros_personalizados();
     testar_base_invalida();
+    testar_relatorio_markdown();
 
     if (falhas > 0) {
         printf("\n%d teste(s) falharam.\n", falhas);

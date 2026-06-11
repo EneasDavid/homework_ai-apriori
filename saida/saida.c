@@ -5,10 +5,6 @@
 #define LIMITE_COMPRAS_EXIBIDAS 20
 #define LIMITE_ELEMENTOS_EXIBIDOS 50
 
-static void escrever_separador(FILE *saida) {
-    fprintf(saida, "============================================================\n");
-}
-
 static void escrever_itemset(
     FILE *saida,
     BaseCompras *base,
@@ -33,10 +29,11 @@ static void escrever_itemset_com_suporte(
     BaseCompras *base,
     ItemsetFrequente *itemset
 ) {
+    fprintf(saida, "`");
     escrever_itemset(saida, base, itemset);
     fprintf(
         saida,
-        " | frequencia = %d | suporte = %d/%d = %.2f%%\n",
+        "` - **Frequencia:** %d - **Suporte:** %d/%d = %.2f%%\n",
         itemset->suporte,
         itemset->suporte,
         base->total_transacoes,
@@ -133,11 +130,11 @@ static void escrever_motivo_poda(
             itemset_ausente.itens[i] = subconjunto[i];
         }
 
-        fprintf(saida, "  Motivo: ");
+        fprintf(saida, "  - **Motivo:** `");
         escrever_itemset(saida, base, &itemset_ausente);
         fprintf(
             saida,
-            " nao esta em L%d; pela Apriori Property, o candidato e descartado.\n",
+            "` nao esta em L%d; pela Apriori Property, o candidato e descartado.\n",
             tamanho_subconjunto
         );
         return;
@@ -161,10 +158,10 @@ static void escrever_lista_candidatos(
         return;
     }
 
-    fprintf(saida, "%s (%d):\n", titulo, total_nivel);
+    fprintf(saida, "#### %s (%d)\n\n", titulo, total_nivel);
 
     if (explicacao != NULL) {
-        fprintf(saida, "%s\n", explicacao);
+        fprintf(saida, "%s\n\n", explicacao);
     }
 
     int exibidos = 0;
@@ -179,8 +176,9 @@ static void escrever_lista_candidatos(
         if (suporte_foi_contado) {
             escrever_itemset_com_suporte(saida, base, &itemsets[i]);
         } else {
+            fprintf(saida, "`");
             escrever_itemset(saida, base, &itemsets[i]);
-            fprintf(saida, " | suporte nao contado por causa da poda\n");
+            fprintf(saida, "` - suporte nao contado por causa da poda\n");
             escrever_motivo_poda(saida, base, resultado, &itemsets[i]);
         }
 
@@ -201,50 +199,44 @@ static void escrever_cabecalho(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
-    escrever_separador(saida);
-    fprintf(saida, " RELATORIO DIDATICO DO ALGORITMO APRIORI\n");
-    escrever_separador(saida);
-    fprintf(saida, "\nArquivo de entrada: %s\n", nome_arquivo_entrada);
-    fprintf(saida, "Transacoes na base (|D|): %d\n", base->total_transacoes);
-    fprintf(saida, "Itens diferentes (|I|): %d\n\n", base->total_itens);
+    fprintf(saida, "# Relatorio didatico do algoritmo Apriori\n\n");
+    fprintf(saida, "- **Arquivo de entrada:** `%s`\n", nome_arquivo_entrada);
+    fprintf(saida, "- **Transacoes na base (|D|):** %d\n", base->total_transacoes);
+    fprintf(saida, "- **Itens diferentes (|I|):** %d\n\n", base->total_itens);
 
-    fprintf(saida, "PARAMETROS INFORMADOS PELO USUARIO\n");
-    fprintf(saida, "---------------------------------\n");
-    fprintf(saida, "Suporte minimo = %d ocorrencias (suporte minimo absoluto)\n",
+    fprintf(saida, "## Parametros informados pelo usuario\n\n");
+    fprintf(saida, "- **Suporte minimo:** %d ocorrencias (suporte minimo absoluto)\n",
             resultado->suporte_minimo);
     fprintf(
         saida,
-        "Nesta base, isso equivale a %d/%d = %.2f%% de suporte relativo.\n",
+        "  - Nesta base, isso equivale a %d/%d = %.2f%% de suporte relativo.\n",
         resultado->suporte_minimo,
         base->total_transacoes,
         100.0f * resultado->suporte_minimo / base->total_transacoes
     );
-    fprintf(saida, "Um candidato entra em Lk quando sua frequencia e >= %d.\n\n",
+    fprintf(saida, "  - Um candidato entra em Lk quando sua frequencia e >= %d.\n",
             resultado->suporte_minimo);
 
-    fprintf(saida, "Confianca minima = %.2f%%\n", resultado->confianca_minima * 100);
-    fprintf(saida, "Uma regra e aceita quando confianca(A -> B) >= %.2f%%.\n\n",
+    fprintf(saida, "- **Confianca minima:** %.2f%%\n", resultado->confianca_minima * 100);
+    fprintf(saida, "  - Uma regra e aceita quando confianca(A -> B) >= %.2f%%.\n\n",
             resultado->confianca_minima * 100);
 
-    fprintf(saida, "Atencao: o percentual equivalente do suporte minimo muda com o tamanho\n");
-    fprintf(saida, "da base, pois esse parametro foi informado como uma CONTAGEM.\n\n");
+    fprintf(saida, "> **Atencao:** o percentual equivalente do suporte minimo muda com o tamanho\n");
+    fprintf(saida, "> da base, pois esse parametro foi informado como uma contagem.\n\n");
 }
 
 static void escrever_guia_de_leitura(FILE *saida) {
-    escrever_separador(saida);
-    fprintf(saida, " GUIA DE LEITURA\n");
-    escrever_separador(saida);
-    fprintf(saida, "\n");
-    fprintf(saida, "- Frequencia: numero exato de transacoes que contem o itemset.\n");
-    fprintf(saida, "- Suporte relativo: frequencia(X) / |D|. Mede o quanto X e comum.\n");
-    fprintf(saida, "- Confianca(A -> B): frequencia(A uniao B) / frequencia(A).\n");
+    fprintf(saida, "## Guia de leitura\n\n");
+    fprintf(saida, "- **Frequencia:** numero exato de transacoes que contem o itemset.\n");
+    fprintf(saida, "- **Suporte relativo:** frequencia(X) / |D|. Mede o quanto X e comum.\n");
+    fprintf(saida, "- **Confianca(A -> B):** frequencia(A uniao B) / frequencia(A).\n");
     fprintf(saida, "  Ela representa P(B|A), isto e, a chance de B quando A ocorreu.\n");
-    fprintf(saida, "- Lift(A -> B): confianca(A -> B) / suporte(B).\n");
+    fprintf(saida, "- **Lift(A -> B):** confianca(A -> B) / suporte(B).\n");
     fprintf(saida, "  Lift > 1 indica associacao positiva; lift = 1 indica independencia;\n");
     fprintf(saida, "  lift < 1 indica que B ocorre menos com A do que na base em geral.\n");
-    fprintf(saida, "- Ck: candidatos com k itens. Lk: candidatos de Ck aprovados pelo suporte.\n");
-    fprintf(saida, "- Join: combina itemsets frequentes de Lk-1 para criar candidatos Ck.\n");
-    fprintf(saida, "- Poda: elimina um candidato se algum subconjunto dele nao esta em Lk-1.\n\n");
+    fprintf(saida, "- **Ck:** candidatos com k itens. **Lk:** candidatos de Ck aprovados pelo suporte.\n");
+    fprintf(saida, "- **Join:** combina itemsets frequentes de Lk-1 para criar candidatos Ck.\n");
+    fprintf(saida, "- **Poda:** elimina um candidato se algum subconjunto dele nao esta em Lk-1.\n\n");
     fprintf(saida, "O codigo usa uma ordem interna consistente, definida pela primeira aparicao\n");
     fprintf(saida, "de cada item no arquivo. O Apriori exige ordem canonica, nao necessariamente\n");
     fprintf(saida, "ordem alfabetica.\n\n");
@@ -254,16 +246,15 @@ static void escrever_base_analisada(
     FILE *saida,
     BaseCompras *base
 ) {
-    escrever_separador(saida);
-    fprintf(saida, " BASE ANALISADA\n");
-    escrever_separador(saida);
-    fprintf(saida, "\nItens na ordem interna: ");
+    fprintf(saida, "## Base analisada\n\n");
+    fprintf(saida, "**Itens na ordem interna:** ");
 
     for (int i = 0; i < base->total_itens; i++) {
-        fprintf(saida, "%s%s", i == 0 ? "" : ", ", base->itens[i]);
+        fprintf(saida, "%s`%s`", i == 0 ? "" : ", ", base->itens[i]);
     }
 
-    fprintf(saida, "\n\nTransacoes exibidas: ate %d\n\n", LIMITE_COMPRAS_EXIBIDAS);
+    fprintf(saida, "\n\n**Transacoes exibidas:** ate %d\n\n", LIMITE_COMPRAS_EXIBIDAS);
+    fprintf(saida, "```text\n");
 
     int limite = base->total_transacoes;
 
@@ -290,7 +281,7 @@ static void escrever_base_analisada(
                 base->total_transacoes - limite);
     }
 
-    fprintf(saida, "\n");
+    fprintf(saida, "```\n\n");
 }
 
 static void escrever_nivel(
@@ -299,26 +290,25 @@ static void escrever_nivel(
     ResultadoApriori *resultado,
     NivelApriori *nivel
 ) {
-    fprintf(saida, "C%d -> L%d\n", nivel->tamanho, nivel->tamanho);
-    fprintf(saida, "---------\n");
+    fprintf(saida, "### C%d -> L%d\n\n", nivel->tamanho, nivel->tamanho);
 
     if (nivel->tamanho == 1) {
-        fprintf(saida, "Candidatos iniciais, um por item: %d\n",
+        fprintf(saida, "- **Candidatos iniciais, um por item:** %d\n",
                 nivel->total_candidatos_gerados);
     } else {
-        fprintf(saida, "Candidatos gerados pelo join: %d\n",
+        fprintf(saida, "- **Candidatos gerados pelo join:** %d\n",
                 nivel->total_candidatos_gerados);
     }
 
-    fprintf(saida, "Candidatos podados antes da contagem: %d\n",
+    fprintf(saida, "- **Candidatos podados antes da contagem:** %d\n",
             nivel->total_candidatos_podados);
-    fprintf(saida, "Candidatos com suporte contado: %d\n", nivel->total_candidatos);
-    fprintf(saida, "Itemsets aprovados em L%d: %d\n", nivel->tamanho, nivel->total);
-    fprintf(saida, "Candidatos reprovados por suporte: %d\n\n",
+    fprintf(saida, "- **Candidatos com suporte contado:** %d\n", nivel->total_candidatos);
+    fprintf(saida, "- **Itemsets aprovados em L%d:** %d\n", nivel->tamanho, nivel->total);
+    fprintf(saida, "- **Candidatos reprovados por suporte:** %d\n\n",
             nivel->total_descartados_suporte);
 
     if (nivel->total > 0) {
-        fprintf(saida, "L%d - itemsets frequentes:\n", nivel->tamanho);
+        fprintf(saida, "#### L%d - itemsets frequentes\n\n", nivel->tamanho);
 
         for (int i = 0; i < nivel->total && i < LIMITE_ELEMENTOS_EXIBIDOS; i++) {
             ItemsetFrequente *itemset =
@@ -365,10 +355,7 @@ static void escrever_execucao(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
-    escrever_separador(saida);
-    fprintf(saida, " EXECUCAO PASSO A PASSO: Ck -> Lk\n");
-    escrever_separador(saida);
-    fprintf(saida, "\n");
+    fprintf(saida, "## Execucao passo a passo: Ck -> Lk\n\n");
 
     for (int k = 1; k <= resultado->total_niveis; k++) {
         escrever_nivel(saida, base, resultado, &resultado->niveis[k]);
@@ -404,11 +391,14 @@ static void escrever_regra(
     int numero,
     ResultadoApriori *resultado
 ) {
-    fprintf(saida, "REGRA %d: %s -> %s\n", numero, regra->antecedente, regra->consequente);
-    fprintf(saida, "- Itemset completo: %s\n", regra->itemset);
+    fprintf(saida, "### Regra %d: `%s -> %s`\n\n",
+            numero,
+            regra->antecedente,
+            regra->consequente);
+    fprintf(saida, "- **Itemset completo:** `%s`\n", regra->itemset);
     fprintf(
         saida,
-        "- Suporte: %d/%d = %.2f%% | passa porque %d >= suporte minimo (%d)\n",
+        "- **Suporte:** %d/%d = %.2f%%; passa porque %d >= suporte minimo (%d)\n",
         regra->suporte_conjunto,
         regra->total_transacoes,
         regra->suporte * 100,
@@ -417,7 +407,7 @@ static void escrever_regra(
     );
     fprintf(
         saida,
-        "- Confianca: %d/%d = %.2f%% | passa porque %.2f%% >= confianca minima (%.2f%%)\n",
+        "- **Confianca:** %d/%d = %.2f%%; passa porque %.2f%% >= confianca minima (%.2f%%)\n",
         regra->suporte_conjunto,
         regra->suporte_antecedente,
         regra->confianca * 100,
@@ -426,7 +416,7 @@ static void escrever_regra(
     );
     fprintf(
         saida,
-        "- Leitura: entre %d transacao(oes) com %s, %d tambem continha(m) %s.\n",
+        "- **Leitura:** entre %d transacao(oes) com `%s`, %d tambem continha(m) `%s`.\n",
         regra->suporte_antecedente,
         regra->antecedente,
         regra->suporte_conjunto,
@@ -434,22 +424,19 @@ static void escrever_regra(
     );
     fprintf(
         saida,
-        "- Lift: %.3f = confianca %.2f%% / suporte do consequente %.2f%%\n",
+        "- **Lift:** %.3f = confianca %.2f%% / suporte do consequente %.2f%%\n",
         regra->lift,
         regra->confianca * 100,
         100.0f * regra->suporte_consequente / regra->total_transacoes
     );
-    fprintf(saida, "- Interpretacao do lift: %s.\n\n", interpretar_lift(regra->lift));
+    fprintf(saida, "- **Interpretacao do lift:** %s.\n\n", interpretar_lift(regra->lift));
 }
 
 static void escrever_regras(
     FILE *saida,
     ResultadoApriori *resultado
 ) {
-    escrever_separador(saida);
-    fprintf(saida, " REGRAS ACEITAS PELA CONFIANCA\n");
-    escrever_separador(saida);
-    fprintf(saida, "\n");
+    fprintf(saida, "## Regras aceitas pela confianca\n\n");
     fprintf(saida, "Uma regra so chega aqui se o itemset passou pelo suporte minimo e a regra\n");
     fprintf(saida, "passou pela confianca minima. O lift compara a regra com a popularidade\n");
     fprintf(saida, "natural do consequente.\n\n");
@@ -480,10 +467,7 @@ static void escrever_coincidencias_raras(
     BaseCompras *base,
     ResultadoApriori *resultado
 ) {
-    escrever_separador(saida);
-    fprintf(saida, " COINCIDENCIAS RARAS\n");
-    escrever_separador(saida);
-    fprintf(saida, "\n");
+    fprintf(saida, "## Coincidencias raras\n\n");
     fprintf(saida, "Itemsets com uma unica ocorrencia podem produzir confianca alta por acaso,\n");
     fprintf(saida, "mas nao sao frequentes porque o suporte minimo e %d. Eles nao geram regras validas.\n\n",
             resultado->suporte_minimo);
@@ -531,32 +515,31 @@ static void escrever_destaques_e_perguntas(
         }
     }
 
-    escrever_separador(saida);
-    fprintf(saida, " DESTAQUES E PERGUNTAS PARA A TURMA\n");
-    escrever_separador(saida);
-    fprintf(saida, "\n");
-    fprintf(saida, "Itemsets frequentes encontrados: %d\n",
+    fprintf(saida, "## Destaques e perguntas para a turma\n\n");
+    fprintf(saida, "| Metrica | Total |\n");
+    fprintf(saida, "|---|---:|\n");
+    fprintf(saida, "| Itemsets frequentes encontrados | %d |\n",
             resultado->total_itemsets_frequentes);
-    fprintf(saida, "Candidatos infrequentes registrados: %d\n",
+    fprintf(saida, "| Candidatos infrequentes registrados | %d |\n",
             resultado->total_candidatos_infrequentes);
-    fprintf(saida, "Candidatos eliminados pela poda: %d\n",
+    fprintf(saida, "| Candidatos eliminados pela poda | %d |\n",
             resultado->total_candidatos_podados);
-    fprintf(saida, "Regras aceitas: %d\n\n", resultado->total_regras);
+    fprintf(saida, "| Regras aceitas | %d |\n\n", resultado->total_regras);
 
     if (maior_lift != NULL) {
-        fprintf(saida, "Maior lift: %s -> %s | confianca %.2f%% | lift %.3f\n",
+        fprintf(saida, "- **Maior lift:** `%s -> %s` - confianca %.2f%% - lift %.3f\n",
                 maior_lift->antecedente,
                 maior_lift->consequente,
                 maior_lift->confianca * 100,
                 maior_lift->lift);
-        fprintf(saida, "Menor lift entre regras aceitas: %s -> %s | confianca %.2f%% | lift %.3f\n\n",
+        fprintf(saida, "- **Menor lift entre regras aceitas:** `%s -> %s` - confianca %.2f%% - lift %.3f\n\n",
                 menor_lift->antecedente,
                 menor_lift->consequente,
                 menor_lift->confianca * 100,
                 menor_lift->lift);
     }
 
-    fprintf(saida, "Perguntas sugeridas:\n");
+    fprintf(saida, "### Perguntas sugeridas\n\n");
     fprintf(saida, "1. Qual e a diferenca entre frequencia e suporte relativo?\n");
     fprintf(saida, "2. Por que A -> B e B -> A podem ter confiancas diferentes?\n");
     fprintf(saida, "3. Qual candidato foi eliminado sem ter o suporte contado, e por que?\n");

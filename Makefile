@@ -7,7 +7,7 @@ CPPFLAGS = -Ileitor -Iapriori -Isaida
 TARGET = programa_apriori
 TEST_TARGET = tests/test_apriori
 SRCS = main.c leitor/leitor.c apriori/apriori.c apriori/metadados_apriori.c saida/saida.c
-TEST_SRCS = tests/test_apriori.c leitor/leitor.c apriori/apriori.c apriori/metadados_apriori.c
+TEST_SRCS = tests/test_apriori.c leitor/leitor.c apriori/apriori.c apriori/metadados_apriori.c saida/saida.c
 
 .PHONY: all run test clean $(TARGET) $(TEST_TARGET)
 
@@ -31,4 +31,4 @@ test: $(TEST_TARGET)
 
 # Remove arquivos gerados pela compilacao e pela execucao.
 clean:
-	rm -f $(TARGET) $(TEST_TARGET) regras_associacao.txt
+	rm -f $(TARGET) $(TEST_TARGET) regras_associacao.md tests/relatorio_teste.md

@@ -31,10 +31,10 @@ Quando o programa pedir o arquivo de entrada, digite:
 exemplo_aula.txt
 ```
 
-O relatorio sera gerado em:
+O relatorio em Markdown sera gerado em:
 
-```txt
-regras_associacao.txt
+```text
+regras_associacao.md
 ```
 
 ## Como limpar arquivos gerados
@@ -48,7 +48,7 @@ make clean
 Esse comando remove:
 
 - `programa_apriori`
-- `regras_associacao.txt`
+- `regras_associacao.md`
 
 
 ---
@@ -61,7 +61,7 @@ APRIORI/
 ├── Makefile
 ├── exemplo_aula.txt
 ├── test_estresse.txt
-├── regras_associacao.txt
+├── regras_associacao.md
 ├── leitor/
 │   ├── leitor.c
 │   └── leitor.h
@@ -104,7 +104,7 @@ ResultadoApriori
    ↓
 saida
    ↓
-regras_associacao.txt
+regras_associacao.md
 ```
 
 O `main.c` apenas conecta essas etapas. A regra do projeto e manter cada responsabilidade no seu proprio modulo.
@@ -205,36 +205,45 @@ Principais alvos:
 Exemplo:
 
 ```txt
-========================================
- ALGORITMO APRIORI - VERSAO MODULAR
-========================================
+============================================================
+ APRIORI | DESCOBERTA DE REGRAS DE ASSOCIACAO
+============================================================
 
-Digite o nome do arquivo de compras: exemplo_aula.txt
+Informe uma base de compras com uma transacao por linha.
+Exemplo de linha: leite,pao,manteiga
 
-[1/3] Lendo arquivo de compras...
-Arquivo lido com sucesso.
-Total de compras: 6
-Total de itens diferentes: 3
+Arquivo de entrada: exemplo_aula.txt
 
-Configure os criterios do Apriori:
+[1/3] Leitura da base
+      Lendo "exemplo_aula.txt"...
+      Base carregada com sucesso: 6 compras, 3 itens.
 
-Suporte minimo e a quantidade minima de compras em que um itemset
-deve aparecer para ser considerado frequente.
-Digite o suporte minimo em ocorrencias (exemplo: 2): 2
+------------------------------------------------------------
+ CONFIGURACAO DA ANALISE
+------------------------------------------------------------
+Base carregada: 6 compras e 3 itens diferentes.
 
-Confianca minima e o percentual minimo para aceitar uma regra
-de associacao, como {pao} -> {leite}.
-Digite a confianca minima entre 0 e 100 (exemplo: 70): 70
+1. Suporte minimo
+   Quantidade minima de compras em que um conjunto de itens
+   deve aparecer para ser considerado frequente.
+   Informe um valor de 1 a 6: 2
 
-Suporte minimo: 2 ocorrencias (33.33% nesta base)
-Confianca minima: 70.00%
+2. Confianca minima
+   Percentual minimo para aceitar uma regra de associacao,
+   como {pao} -> {leite}.
+   Informe um percentual de 0 a 100: 70
 
-[2/3] Aplicando algoritmo Apriori...
-Apriori executado com sucesso.
-Total de regras encontradas: 1
+Resumo da configuracao:
+- Suporte minimo: 2 ocorrencias (33.33% da base)
+- Confianca minima: 70.00%
 
-[3/3] Gerando arquivo de saida...
-Arquivo de saida gerado com sucesso: regras_associacao.txt
+[2/3] Processamento
+      Aplicando o algoritmo Apriori...
+      Apriori concluido: 1 regra(s) encontrada(s).
+
+[3/3] Relatorio
+      Gerando arquivo Markdown...
+      Arquivo gerado com sucesso: regras_associacao.md
 
 Processamento finalizado.
 ```

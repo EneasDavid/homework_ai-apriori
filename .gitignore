@@ -1,3 +1,4 @@
 programa_apriori
 regras_associacao.txt
+regras_associacao.md
 tests/test_apriori
